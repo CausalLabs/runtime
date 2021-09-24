@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    implementation 'org.slf4j:slf4j-api:1.7.30'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.9.8'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
+}
+
+publishing {
+  publications {
+      mavenJava(MavenPublication) {
+          groupId = 'io.causallabs'
+          artifactId = 'causal-runtime'
+          from components.java
+      }
+  }
+  repositories {
+      maven {
+          url 'https://causal-530459586293.d.codeartifact.us-east-2.amazonaws.com/maven/causal/'
+          credentials {
+              username "aws"
+              password System.env.CODEARTIFACT_AUTH_TOKEN
+          }
+      }
+  }
+}
