@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
-    id 'maven-publish'
+    id 'maven'
+    id 'signing'
 }
 
 repositories {
@@ -12,21 +13,65 @@ dependencies {
     api 'org.slf4j:slf4j-api:1.7.30'
 }
 
-publishing {
-  publications {
-      mavenJava(MavenPublication) {
-          groupId = 'io.causallabs'
-          artifactId = 'causal-runtime'
-          from components.java
-      }
-  }
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+uploadArchives {
   repositories {
-      maven {
-          url 'https://causal-530459586293.d.codeartifact.us-east-2.amazonaws.com/maven/causal/'
-          credentials {
-              username "aws"
-              password System.env.CODEARTIFACT_AUTH_TOKEN
-          }
+    mavenDeployer {
+      beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+      repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
       }
+
+      snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      pom.project {
+        name 'Causal Java  Runtime Library'
+        packaging 'jar'
+        // optionally artifactId can be defined here
+        description 'The runtime librarys required when calling the Causal Java API.'
+        url 'http://causallabs.io'
+
+        scm {
+          connection 'scm:git:git@github.com:CausalLabs/runtime.git'
+          developerConnection 'scm:git:git@github.com:CausalLabs/runtime.git'
+          url 'h ttps://github.com/CausalLabs/runtime.git'
+        }
+
+        licenses {
+          license {
+            name 'The Apache License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+          }
+        }
+
+        developers {
+          developer {
+            id 'jpalmucci'
+            name 'Jeff Palmucci'
+            email 'support@causallabs.io'
+          }
+        }
+      }
+    }
   }
 }

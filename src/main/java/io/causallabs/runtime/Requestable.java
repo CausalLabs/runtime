@@ -9,61 +9,67 @@ import com.fasterxml.jackson.core.JsonParser;
  */
 public interface Requestable {
 
-    /**
-     * Memoization support. Return true if the request should be memoized with the previous request
-     */
+    /** reset everything to default values */
+    public void reset();
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Memoization support.
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // Return true if the request should be memoized with the previous request
     public boolean argsMatch(Requestable obj);
 
-    /**
-     * Memoization support. Increment the count if another request was just memoized with this one.
-     */
+    // Increment the count if another request was just memoized with this one.
     public void incCount();
 
     public long count();
 
     public String featureName();
 
-    /**
-     * serialize the arguments to be sent to the impression server. gen should already be in the
-     * object context
-     */
+    //////////////////////////////////////////////////////////////////////////////////
+    // Serialization Support
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // serialize the arguments to be sent to the impression server. gen should
+    // already be in the object context
     public void serializeArgs(JsonGenerator gen) throws IOException;
 
-    /**
-     * ApiExceptions can happen if we try to deserialize a value to somewhere it can't go. IE
-     * deserializing a string to an int.
-     * 
-     * @param next
-     * @throws ApiException
-     */
+    // Deserialize the arguments from a client into this object
     public void deserializeArgs(JsonParser next) throws ApiException;
 
-    /** serialize the result to be sent to the client */
+    // Serialize the result to be sent to the client
     public void serializeResponse(JsonGenerator gen) throws IOException;
 
-    /**
-     * ApiExceptions can happen if we try to deserialize a value to somewhere it can't go. IE
-     * deserializing a string to an int.
-     * 
-     * @param next
-     * @throws ApiException
-     */
+    // Take a response from the server and deserialize it into this object.
+    // ApiExceptions can happen if we try to deserialize a value to somewhere
+    // it can't go. IE deserializing a string to an int.
     public void deserializeResponse(JsonParser parser) throws ApiException;
 
-    /** avro style access to fields */
+    //////////////////////////////////////////////////////////////////////////////////
+    // avro style access to fields
+    //////////////////////////////////////////////////////////////////////////////////
+
     public void put(int i, Object o);
 
     public boolean isSet(int i);
 
     public Object get(int i);
 
-    /** reset everything to default values */
-    public void reset();
-
-    /** Support for feature gating */
+    ////////////////////////////////////////////////////////////////////////////////
+    // Support for feature gating
+    ////////////////////////////////////////////////////////////////////////////////
     public void setActive(boolean b);
 
+    /**
+     * Is this feature active?
+     * 
+     * @return false if gated off
+     */
     public boolean isActive();
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // For quick access from native code
+    ////////////////////////////////////////////////////////////////////////////////
 
     public String getDeviceId();
 

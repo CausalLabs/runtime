@@ -24,11 +24,6 @@ public class CausalClientBase {
         m_impressionServerUrl = impressionServerUrl;
     }
 
-    /**
-     * Create a generator that can be used to serialize a request
-     * 
-     * @return
-     */
     public JsonGenerator createGenerator() {
         StringWriter sw = new StringWriter();
         try {
@@ -50,15 +45,9 @@ public class CausalClientBase {
         }
     }
 
-    /**
-     * the generator has the device and session args encoded. Encode the rest and execute the
-     * request.
-     * 
-     * @param gen
-     * @param requests
-     * @throws IOException
-     * @throws InterruptedException
-     */
+
+    // the generator has the device and session args encoded. Encode the rest and execute the
+    // request.
     protected void request(JsonGenerator gen, String deviceId, Requestable... requests)
             throws InterruptedException {
 
@@ -142,11 +131,8 @@ public class CausalClientBase {
         }
     }
 
-    /**
-     * Send the Json payload to the signal handler
-     * 
-     * @throws InterruptedException
-     */
+
+    // Send the Json payload to the signal handler
     public void signal(JsonGenerator gen) throws InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/signal"))
                 .setHeader("user-agent", "Causal java client")
@@ -162,8 +148,6 @@ public class CausalClientBase {
 
         }
     }
-
-
 
     private String m_impressionServerUrl;
     HttpClient m_client = HttpClient.newHttpClient();
