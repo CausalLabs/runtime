@@ -59,7 +59,7 @@ public class CausalClientBase {
                 gen.writeStartObject();
                 gen.writeStringField("name", request.featureName());
                 gen.writeFieldName("args");
-                request.serializeArgs(gen);;
+                request.serializeArgs(gen);
                 gen.writeEndObject();
             }
             gen.writeEndArray();
@@ -132,21 +132,17 @@ public class CausalClientBase {
     }
 
 
-    // Send the Json payload to the signal handler
+    // Send the Json payload to the signal handler (asynchronously)
     public void signal(JsonGenerator gen) throws InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/signal"))
                 .setHeader("user-agent", "Causal java client")
                 .header("Content-Type", "application/json").header("Accept", "text/plain")
                 .POST(BodyPublishers.ofString(getResult(gen))).build();
-        try {
-            HttpResponse<InputStream> resp = m_client.send(req, BodyHandlers.ofInputStream());
+        m_client.sendAsync(req, BodyHandlers.ofString()).thenAccept(resp -> {
             if (resp.statusCode() != 200) {
-                logger.error("Error signaling event: " + new String(resp.body().readAllBytes()));
+                logger.error("Error signaling event: " + resp);
             }
-        } catch (IOException e) {
-            logger.error("Couldn't signal event. Event dropped", e);
-
-        }
+        });
     }
 
     private String m_impressionServerUrl;

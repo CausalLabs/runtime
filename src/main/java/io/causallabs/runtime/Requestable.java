@@ -1,6 +1,5 @@
 package io.causallabs.runtime;
 
-import java.io.IOException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 
@@ -32,13 +31,13 @@ public interface Requestable {
 
     // serialize the arguments to be sent to the impression server. gen should
     // already be in the object context
-    public void serializeArgs(JsonGenerator gen) throws IOException;
+    public void serializeArgs(JsonGenerator gen);
 
     // Deserialize the arguments from a client into this object
     public void deserializeArgs(JsonParser next) throws ApiException;
 
     // Serialize the result to be sent to the client
-    public void serializeResponse(JsonGenerator gen) throws IOException;
+    public void serializeResponse(JsonGenerator gen);
 
     // Take a response from the server and deserialize it into this object.
     // ApiExceptions can happen if we try to deserialize a value to somewhere
