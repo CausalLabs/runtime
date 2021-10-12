@@ -8,13 +8,28 @@ public class ApiException extends Exception {
      */
     private static final long serialVersionUID = 6621727584733885748L;
 
-    public ApiException(String message) {
+    public ApiException(int statusCode, String message) {
         super(message);
+        m_statusCode = statusCode;
+    }
+
+    public ApiException(String message) {
+        this(400, message);
+    }
+
+    public ApiException(int statusCode, String string, Exception e) {
+        super(string, e);
+        m_statusCode = statusCode;
     }
 
     public ApiException(String string, Exception e) {
-        super(string, e);
+        this(400, string, e);
     }
 
+    public int getStatusCode() {
+        return m_statusCode;
+    }
+
+    private final int m_statusCode;
 
 }
