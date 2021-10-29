@@ -55,8 +55,8 @@ public class CausalClientBase {
     // the generator has the device and session args encoded. Encode the rest and
     // execute the
     // request.
-    protected CompletableFuture<Void> requestAsync(JsonGenerator gen, String deviceId, Requestable... requests)
-            throws InterruptedException {
+    protected CompletableFuture<Void> requestAsync(JsonGenerator gen, String deviceId,
+            Requestable... requests) throws InterruptedException {
 
         try {
             gen.writeFieldName("reqs");
@@ -77,12 +77,13 @@ public class CausalClientBase {
             throw new RuntimeException("IO Error creating request, using control", e);
         }
         HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/features"))
-                .setHeader("user-agent", "Causal java client").header("Content-Type", "application/json")
-                .header("Accept", "text/plain").POST(BodyPublishers.ofString(getResult(gen))).build();
-        CompletableFuture<HttpResponse<InputStream>> responseFuture = m_client.sendAsync(req,
-                BodyHandlers.ofInputStream());
-        CompletableFuture<Void> finalFuture = responseFuture
-                .handle((BiFunction<HttpResponse<InputStream>, Throwable, Void>) (resp, exception) -> {
+                .setHeader("user-agent", "Causal java client")
+                .header("Content-Type", "application/json").header("Accept", "text/plain")
+                .POST(BodyPublishers.ofString(getResult(gen))).build();
+        CompletableFuture<HttpResponse<InputStream>> responseFuture =
+                m_client.sendAsync(req, BodyHandlers.ofInputStream());
+        CompletableFuture<Void> finalFuture = responseFuture.handle(
+                (BiFunction<HttpResponse<InputStream>, Throwable, Void>) (resp, exception) -> {
 
                     if (exception != null) {
                         // Error while connecting to the server
@@ -91,23 +92,39 @@ public class CausalClientBase {
                     }
                     if (resp.statusCode() != 200) {
                         // if we get an error code, throw an Api exception
-                        errorOutRequests(
-                                new ApiException(
-                                        "Error code " + resp.statusCode() + " from server: " + resp.body().toString()),
-                                requests);
+                        errorOutRequests(new ApiException("Error code " + resp.statusCode()
+                                + " from server: " + resp.body().toString()), requests);
                         return null;
                     }
 
                     try {
                         JsonParser parser = m_mapper.getFactory().createParser(resp.body());
+                        if (parser.nextToken() != JsonToken.START_OBJECT) {
+                            errorOutRequests(new IOException("Malformed response, using control."),
+                                    requests);
+                            return null;
+                        }
+                        parser.nextToken();
+                        if (!parser.getCurrentName().equals("impressions")) {
+                            errorOutRequests(new IOException(
+                                    "Malformed response, expecting 'impressions', using control."),
+                                    requests);
+                            return null;
+                        }
+
                         if (!JsonToken.START_ARRAY.equals(parser.nextToken())) {
-                            errorOutRequests(new IOException("Malformed response, using control."), requests);
+                            errorOutRequests(
+                                    new IOException(
+                                            "Malformed response, expecting array, using control."),
+                                    requests);
                             return null;
                         }
                         parser.nextToken();
                         for (Requestable request : requests) {
                             if (parser.currentToken().equals(JsonToken.END_ARRAY)) {
-                                errorOutRequests(new IOException("Response too short, using control values."),
+                                errorOutRequests(
+                                        new IOException(
+                                                "Response too short, using control values."),
                                         requests);
                                 return null;
                             }
@@ -126,26 +143,28 @@ public class CausalClientBase {
                                 }
                             }
                             if (!parser.currentToken().equals(JsonToken.START_OBJECT)) {
-                                request.setError(new ApiException(
-                                        "Malformed response for " + request.featureName() + ", using control values."));
-                                logger.warn(request.getError().getMessage());
-                                ;
+                                request.setError(new ApiException("Malformed response for "
+                                        + request.featureName() + ", using control values."));
+                                logger.warn(request.getError().getMessage());;
                                 consumeValue(parser);
                             }
                             try {
                                 request.deserializeResponse(parser);
                             } catch (ApiException e) {
-                                request.setError(new ApiException("Error parsing response from server for "
-                                        + request.featureName() + ", reverting to control."));
-                                logger.warn(request.getError().getMessage());
-                                ;
+                                request.setError(
+                                        new ApiException("Error parsing response from server for "
+                                                + request.featureName()
+                                                + ", reverting to control."));
+                                logger.warn(request.getError().getMessage());;
                             }
                         }
                     } catch (JsonParseException e1) {
-                        errorOutRequests(new ApiException("Malformed response, using control.", e1), requests);
+                        errorOutRequests(new ApiException("Malformed response, using control.", e1),
+                                requests);
                     } catch (IOException e1) {
                         // may happen if we lose connection mid string
-                        errorOutRequests(new ApiException("Malformed response, using control.", e1), requests);
+                        errorOutRequests(new ApiException("Malformed response, using control.", e1),
+                                requests);
                     }
                     return null;
                 });
@@ -186,14 +205,16 @@ public class CausalClientBase {
     // Send the Json payload to the signal handler (asynchronously)
     public void signal(JsonGenerator gen) {
         HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/signal"))
-                .setHeader("user-agent", "Causal java client").header("Content-Type", "application/json")
-                .header("Accept", "text/plain").POST(BodyPublishers.ofString(getResult(gen))).build();
-        CompletableFuture<Void> future = m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
-            if (resp.statusCode() != 200) {
-                logger.error("Error signaling event: " + resp);
-                throw new RuntimeException("Error signaling event: " + resp);
-            }
-        });
+                .setHeader("user-agent", "Causal java client")
+                .header("Content-Type", "application/json").header("Accept", "text/plain")
+                .POST(BodyPublishers.ofString(getResult(gen))).build();
+        CompletableFuture<Void> future =
+                m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
+                    if (resp.statusCode() != 200) {
+                        logger.error("Error signaling event: " + resp);
+                        throw new RuntimeException("Error signaling event: " + resp);
+                    }
+                });
 
         // wait for the result, cause if we dont, then the process may terminate before
         // the signal is sent
@@ -208,15 +229,16 @@ public class CausalClientBase {
 
     // need a daemon thread pool to wait for the asynchronous operations because the
     // process may exit before completing them otherwise
-    private static ExecutorService m_threadPool = Executors.newSingleThreadExecutor(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = Executors.defaultThreadFactory().newThread(r);
-            t.setDaemon(true);
-            return t;
-        }
+    private static ExecutorService m_threadPool =
+            Executors.newSingleThreadExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                    t.setDaemon(true);
+                    return t;
+                }
 
-    });
+            });
     static {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
