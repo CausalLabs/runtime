@@ -1,6 +1,6 @@
 plugins {
     id 'java-library'
-    id 'maven'
+    id 'maven-publish'
     id 'signing'
 }
 
@@ -13,66 +13,75 @@ dependencies {
     api 'org.slf4j:slf4j-api:1.7.30'
 }
 
-task javadocJar(type: Jar) {
-    classifier = 'javadoc'
-    from javadoc
+group = 'io.causallabs'
+version = System.env.MAVEN_VERSION
+
+java {
+    withJavadocJar()
+    withSourcesJar()
 }
 
-task sourcesJar(type: Jar) {
-    classifier = 'sources'
-    from sourceSets.main.allSource
-}
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'runtime'
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = 'Causal Runtime Library'
+                description = 'Runtime required to run Causal java components.'
+                url = 'http://www.causallabs.io'
 
-artifacts {
-    archives javadocJar, sourcesJar
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'jpalmucci'
+                        name = 'Jeff Palmucci'
+                        email = 'support@causallabs.io'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git@github.com:CausalLabs/runtime.git'
+                    developerConnection = 'scm:git:git@github.com:CausalLabs/runtime.git'
+                    url = 'https://github.com/CausalLabs/runtime.git'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            // change URLs to point to your repos, e.g. http://my.org/repo
+            def releasesRepoUrl = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
+            def snapshotsRepoUrl = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+              username = System.env.OSSRH_USERNAME
+              password = System.env.OSSRH_PASSWORD
+            }
+        }
+    }
 }
 
 signing {
-  useInMemoryPgpKeys(System.env.RUNTIME_SIGNING_KEY, System.env.RUNTIME_SIGNING_PASSWORD)
-  sign configurations.archives
+    useInMemoryPgpKeys(System.env.RUNTIME_SIGNING_KEY, System.env.RUNTIME_SIGNING_PASSWORD)
+    sign publishing.publications.mavenJava
 }
 
-uploadArchives {
-  repositories {
-    mavenDeployer {
-      beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-      repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
-        authentication(userName: System.env.OSSRH_USERNAME, password: System.env.OSSRH_PASSWORD)
-      }
-
-      snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
-        authentication(userName: System.env.OSSRH_USERNAME, password: System.env.OSSRH_PASSWORD)
-      }
-
-      pom.project {
-        name 'Causal Java  Runtime Library'
-        packaging 'jar'
-        // optionally artifactId can be defined here
-        description 'The runtime librarys required when calling the Causal Java API.'
-        url 'http://causallabs.io'
-
-        scm {
-          connection 'scm:git:git@github.com:CausalLabs/runtime.git'
-          developerConnection 'scm:git:git@github.com:CausalLabs/runtime.git'
-          url 'h ttps://github.com/CausalLabs/runtime.git'
-        }
-
-        licenses {
-          license {
-            name 'The Apache License, Version 2.0'
-            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-          }
-        }
-
-        developers {
-          developer {
-            id 'jpalmucci'
-            name 'Jeff Palmucci'
-            email 'support@causallabs.io'
-          }
-        }
-      }
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
     }
-  }
 }
+
