@@ -19,7 +19,8 @@ public interface Requestable {
     public boolean argsMatch(Requestable obj);
 
     // Increment the count if another request was just memoized with this one.
-    public void incCount();
+    // optionally pass a new impressionId to keep track of
+    public void incCount(String impressionId);
 
     public long count();
 
