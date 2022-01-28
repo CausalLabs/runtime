@@ -55,6 +55,9 @@ public interface Requestable {
 
     public Object get(int i);
 
+    // set the given output as an external value with the given name
+    public void putExternal(int i, String name);
+
     ////////////////////////////////////////////////////////////////////////////////
     // Support for feature gating
     ////////////////////////////////////////////////////////////////////////////////
