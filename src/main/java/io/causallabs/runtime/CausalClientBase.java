@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -225,6 +226,69 @@ public class CausalClientBase {
                 e.printStackTrace();
             }
         });
+    }
+
+    /**
+     * Make a jackson generator to serialize an external callback. The generator is left at the
+     * place where you write the external value. caller should call this, write the value to the
+     * generator, then call signalExternal
+     * 
+     * @param deviceId
+     * @param impressionIds
+     * @param fieldName
+     * @return
+     */
+    public JsonGenerator externalGenerator(String deviceId, List<String> impressionIds,
+            String featureName, String fieldName) {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonGenerator gen = m_mapper.getFactory().createGenerator(sw);
+            gen.writeStartObject();
+            gen.writeObjectField("deviceId", deviceId);
+            gen.writeObjectField("feature", featureName);
+            if (impressionIds.size() > 0)
+                gen.writeObjectField("impressionId", impressionIds.get(0));
+            gen.writeFieldName(fieldName);
+            return gen;
+        } catch (IOException e) {
+            // we are writing to a string, so this should never fail
+            throw new RuntimeException("Error creating in memory generator.", e);
+        }
+    }
+
+    /**
+     * See externalGenerator
+     * 
+     * @param gen
+     */
+    public void signalExternal(JsonGenerator gen) {
+        try {
+            gen.writeEndObject();
+            HttpRequest req = HttpRequest
+                    .newBuilder(URI.create(m_impressionServerUrl + "/external"))
+                    .setHeader("user-agent", "Causal java client")
+                    .header("Content-Type", "application/json").header("Accept", "text/plain")
+                    .POST(BodyPublishers.ofString(getResult(gen))).build();
+            CompletableFuture<Void> future =
+                    m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
+                        if (resp.statusCode() != 200) {
+                            logger.error("Error writing external: " + resp);
+                            throw new RuntimeException("Error writing external: " + resp);
+                        }
+                    });
+            m_threadPool.submit(() -> {
+                try {
+                    // wait for the result, cause if we dont, then the process may terminate before
+                    // the signal is sent
+                    future.get();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        } catch (IOException e) {
+            // we are writing to a string, so this should never fail
+            throw new RuntimeException("Error creating in memory generator.", e);
+        }
     }
 
     // need a daemon thread pool to wait for the asynchronous operations because the
