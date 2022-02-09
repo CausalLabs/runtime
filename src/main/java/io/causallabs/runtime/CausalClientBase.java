@@ -294,7 +294,7 @@ public class CausalClientBase {
     // need a daemon thread pool to wait for the asynchronous operations because the
     // process may exit before completing them otherwise
     private static ExecutorService m_threadPool =
-            Executors.newSingleThreadExecutor(new ThreadFactory() {
+            Executors.newFixedThreadPool(4, new ThreadFactory() {
                 @Override
                 public Thread newThread(Runnable r) {
                     Thread t = Executors.defaultThreadFactory().newThread(r);
