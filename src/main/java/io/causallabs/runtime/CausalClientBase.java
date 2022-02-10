@@ -184,7 +184,7 @@ public class CausalClientBase {
 
     // mark the requests with the recoverable error and log it.
     private void errorOutRequests(Throwable exception, Requestable[] requests) {
-        logger.warn(exception.getMessage(), exception);
+        logger.warn(exception.getMessage());
         for (Requestable r : requests) {
             r.setError(exception);
         }
@@ -212,8 +212,8 @@ public class CausalClientBase {
         CompletableFuture<Void> future =
                 m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
                     if (resp.statusCode() != 200) {
-                        logger.error("Error signaling event: " + resp);
-                        throw new RuntimeException("Error signaling event: " + resp);
+                        logger.error("Error signaling event: " + resp.body());
+                        throw new RuntimeException("Error signaling event: " + resp.body());
                     }
                 });
 
@@ -272,8 +272,8 @@ public class CausalClientBase {
             CompletableFuture<Void> future =
                     m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
                         if (resp.statusCode() != 200) {
-                            logger.error("Error writing external: " + resp);
-                            throw new RuntimeException("Error writing external: " + resp);
+                            logger.error("Error writing external: " + resp.body());
+                            throw new RuntimeException("Error writing external: " + resp.body());
                         }
                     });
             m_threadPool.submit(() -> {
