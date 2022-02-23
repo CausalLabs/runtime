@@ -45,7 +45,13 @@ public interface Requested {
 
     public boolean isSet(int i);
 
+    // Return user visible representation of the field
     public Object get(int i);
+
+    // does not translate objects from their internal representation.
+    // used to log data to the avro file
+    // currently just returns a Mutable for mutable fields.
+    public Object getLog(int i);
 
     // set the given output as an external value with the given name
     public void putExternal(int i, String name);
