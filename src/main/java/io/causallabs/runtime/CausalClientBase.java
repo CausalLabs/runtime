@@ -93,8 +93,18 @@ public class CausalClientBase {
                     }
                     if (resp.statusCode() != 200) {
                         // if we get an error code, throw an Api exception
-                        errorOutRequests(new ApiException("Error code " + resp.statusCode()
-                                + " from server: " + resp.body().toString()), requests);
+                        try {
+                            errorOutRequests(
+                                    new ApiException(
+                                            "Error code " + resp.statusCode() + " from server: "
+                                                    + new String(resp.body().readAllBytes())),
+                                    requests);
+                        } catch (IOException e) {
+                            errorOutRequests(
+                                    new ApiException(
+                                            "Error code " + resp.statusCode() + " from server"),
+                                    requests);
+                        }
                         return null;
                     }
 
@@ -212,8 +222,9 @@ public class CausalClientBase {
         CompletableFuture<Void> future =
                 m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
                     if (resp.statusCode() != 200) {
-                        logger.error("Error signaling event: " + resp.body());
-                        throw new RuntimeException("Error signaling event: " + resp.body());
+                        String body = new String(resp.body().getBytes());
+                        logger.error("Error signaling event: " + body);
+                        throw new RuntimeException("Error signaling event: " + body);
                     }
                 });
 
@@ -272,8 +283,9 @@ public class CausalClientBase {
             CompletableFuture<Void> future =
                     m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
                         if (resp.statusCode() != 200) {
-                            logger.error("Error writing external: " + resp.body());
-                            throw new RuntimeException("Error writing external: " + resp.body());
+                            String body = new String(resp.body().getBytes());
+                            logger.error("Error writing external: " + body);
+                            throw new RuntimeException("Error writing external: " + body);
                         }
                     });
             m_threadPool.submit(() -> {

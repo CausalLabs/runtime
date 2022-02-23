@@ -53,6 +53,9 @@ public interface Requested {
     // currently just returns a Mutable for mutable fields.
     public Object getLog(int i);
 
+    // used to set a new value on a mutation
+    public void putMutation(int i, Object o);
+
     // set the given output as an external value with the given name
     public void putExternal(int i, String name);
 
