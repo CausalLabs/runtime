@@ -7,6 +7,18 @@ import java.util.List;
 
 public class Mutable<T> {
 
+    public Mutable() {}
+
+    public Mutable(T initialValue) {
+        setInitialValue(initialValue);
+    }
+
+    public void setInitialValue(T x) {
+        // we could make this a bunch more memory efficient if we need to - TODO
+        values.clear();
+        values.add(new Record(System.currentTimeMillis(), x));
+    }
+
     public void setValue(T x) {
         long now = System.currentTimeMillis();
         if (!values.isEmpty()) {
