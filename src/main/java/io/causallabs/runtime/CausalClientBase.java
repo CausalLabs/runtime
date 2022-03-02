@@ -215,26 +215,25 @@ public class CausalClientBase {
 
     // Send the Json payload to the signal handler (asynchronously)
     public void signal(JsonGenerator gen) {
-        HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/signal"))
-                .setHeader("user-agent", "Causal java client")
-                .header("Content-Type", "application/json").header("Accept", "text/plain")
-                .POST(BodyPublishers.ofString(getResult(gen))).build();
-        CompletableFuture<Void> future =
-                m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
-                    if (resp.statusCode() != 200) {
-                        String body = new String(resp.body().getBytes());
-                        logger.error("Error signaling event: " + body);
-                        throw new RuntimeException("Error signaling event: " + body);
-                    }
-                });
+        final HttpRequest req =
+                HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/signal"))
+                        .setHeader("user-agent", "Causal java client")
+                        .header("Content-Type", "application/json").header("Accept", "text/plain")
+                        .POST(BodyPublishers.ofString(getResult(gen))).build();
 
-        // wait for the result, cause if we dont, then the process may terminate before
-        // the signal is sent
+        // the threads are not deamons, so they should finish the signaling before terminating the
+        // process
         m_threadPool.submit(() -> {
             try {
-                future.get();
+                // note, we switched from sendAsync because that had issues with runaway thread
+                // allocation
+                HttpResponse<String> resp = m_client.send(req, BodyHandlers.ofString());
+                if (resp.statusCode() != 200) {
+                    String body = new String(resp.body().getBytes());
+                    logger.error("Error signaling impression server: " + body);
+                }
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Error signaling impression server: " + e.getMessage(), e);
             }
         });
     }
