@@ -55,6 +55,11 @@ public class CausalClientBase {
         }
     }
 
+    public CompletableFuture<Void> requestAsync(SessionRequestable session, Requestable... requests)
+            throws InterruptedException {
+        return requestAsync(session, UUID.randomUUID().toString(), requests);
+    }
+
     public CompletableFuture<Void> requestAsync(SessionRequestable session, String impressionId,
             Requestable... requests) throws InterruptedException {
         try {
@@ -63,19 +68,16 @@ public class CausalClientBase {
             _gen.writeFieldName("args");
             session.serializeArgs(_gen);
             _gen.writeStringField("impressionId", impressionId);
-            for (Requestable req : requests) {
-                req.setSession(session);
-            }
-            return requestAsync(_gen, requests);
+            return requestAsync(session, _gen, requests);
         } catch (IOException e) {
             // this shouldn't happen because the generator writes to RAM.
             throw new RuntimeException("Error serializing to RAM");
         }
     }
 
-    public CompletableFuture<Void> requestAsync(SessionRequestable session, Requestable... requests)
+    public void request(SessionRequestable session, Requestable... requests)
             throws InterruptedException {
-        return requestAsync(session, UUID.randomUUID().toString(), requests);
+        request(session, UUID.randomUUID().toString(), requests);
     }
 
     public void request(SessionRequestable session, String impressionId, Requestable... requests)
@@ -89,16 +91,14 @@ public class CausalClientBase {
         }
     }
 
-    public void request(SessionRequestable session, Requestable... requests)
-            throws InterruptedException {
-        request(session, UUID.randomUUID().toString(), requests);
-    }
-
     // the generator has the device and session args encoded. Encode the rest and
     // execute the
     // request.
-    protected CompletableFuture<Void> requestAsync(JsonGenerator gen, Requestable... requests)
-            throws InterruptedException {
+    protected CompletableFuture<Void> requestAsync(SessionRequestable session, JsonGenerator gen,
+            Requestable... requests) throws InterruptedException {
+        for (Requestable req : requests) {
+            req.setSession(session);
+        }
 
         try {
             gen.writeFieldName("reqs");
@@ -157,6 +157,17 @@ public class CausalClientBase {
                             return null;
                         }
                         parser.nextToken();
+                        if (parser.getCurrentName().equals("session")) {
+                            try {
+                                parser.nextToken();
+                                session.deserializeResponse(parser);
+                            } catch (ApiException e) {
+                                errorOutRequests(new ApiException(
+                                        "Error parsing response from server for the session, reverting to control."),
+                                        requests);
+                                return null;
+                            }
+                        }
                         if (!parser.getCurrentName().equals("impressions")) {
                             errorOutRequests(new IOException(
                                     "Malformed response, expecting 'impressions', using control."),
