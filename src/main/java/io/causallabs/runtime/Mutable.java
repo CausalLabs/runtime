@@ -16,7 +16,7 @@ public class Mutable<T> {
     public void setInitialValue(T x) {
         // we could make this a bunch more memory efficient if we need to - TODO
         values.clear();
-        values.add(new Record(System.currentTimeMillis(), x));
+        values.add(new Record<T>(System.currentTimeMillis(), x));
     }
 
     public void setValue(T x) {
@@ -24,21 +24,21 @@ public class Mutable<T> {
         if (!values.isEmpty()) {
             values.get(values.size() - 1).endTime = now - 1;
         }
-        values.add(new Record(now, x));
+        values.add(new Record<T>(now, x));
     }
 
     public T getValue() {
         return values.get(values.size() - 1).value;
     }
 
-    public List<Record> getHistory() {
+    public List<Record<T>> getHistory() {
         if (!values.isEmpty()) {
             values.get(values.size() - 1).endTime = System.currentTimeMillis() - 1;
         }
         return values;
     }
 
-    public class Record implements IndexedRecord {
+    public static class Record<T> implements IndexedRecord {
         public Record(long now, T x) {
             startTime = now;
             value = x;
@@ -72,5 +72,5 @@ public class Mutable<T> {
         }
     }
 
-    ArrayList<Record> values = new ArrayList<>();
+    ArrayList<Record<T>> values = new ArrayList<>();
 }
