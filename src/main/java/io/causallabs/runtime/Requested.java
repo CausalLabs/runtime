@@ -2,6 +2,8 @@ package io.causallabs.runtime;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Interface that must be supported for java classes that represent a feature inside the impression
@@ -71,9 +73,6 @@ public interface Requested {
      */
     public boolean isActive();
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // For quick access from native code
-    ////////////////////////////////////////////////////////////////////////////////
+    public static final Logger logger = LoggerFactory.getLogger(Requested.class);
 
-    public String getDeviceId();
 }

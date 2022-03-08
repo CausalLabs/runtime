@@ -6,48 +6,63 @@ import com.fasterxml.jackson.core.JsonParser;
 /**
  * Interface that must be supported for java classes that represent a feature in the Java client API
  */
-public interface Requestable {
+public abstract class Requestable {
 
-    public String featureName();
+    public abstract String featureName();
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // Support for feature gating
-    ////////////////////////////////////////////////////////////////////////////////
     /**
      * Is this feature active?
      * 
      * @return false if gated off
      */
-    public boolean isActive();
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // Support for recoveralbe errors
-    ////////////////////////////////////////////////////////////////////////////////
+    public boolean isActive() {
+        return _active;
+    }
 
     /**
      * Check if a recoverable error occurred
      * 
      * @return If the request resulted in a recoverable error, the error, else null.
      */
-    public Throwable getError();
+    public Throwable getError() {
+        return throwable;
+    };
 
-    public String getDeviceId();
-
-    public void setDeviceId(String x);
+    public final SessionRequestable getSession() {
+        return m_session;
+    }
 
     ////////////////////////////////////////////////////////////////////////////////
-    // For use by causal runtinme
+    // For use by causal runtime and impression server
     ////////////////////////////////////////////////////////////////////////////////
-    void setActive(boolean b);
 
-    void setError(Throwable t);
+    void setActive(boolean x) {
+        _active = true;
+    }
+
+    private boolean _active = false;
+
+    // recoverable error support
+    public void setError(Throwable t) {
+        throwable = t;
+    };
+
+    private Throwable throwable = null;
 
     // serialize the arguments to be sent to the impression server. gen should
     // already be in the object context
-    void serializeArgs(JsonGenerator gen);
+    abstract public void serializeArgs(JsonGenerator gen);
 
     // Take a response from the server and deserialize it into this object.
     // ApiExceptions can happen if we try to deserialize a value to somewhere
     // it can't go. IE deserializing a string to an int.
-    void deserializeResponse(JsonParser parser) throws ApiException;
+    abstract public void deserializeResponse(JsonParser parser) throws ApiException;
+
+
+    void setSession(SessionRequestable s) {
+        m_session = s;
+    }
+
+    SessionRequestable m_session = null;
+
 }

@@ -11,7 +11,9 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -53,17 +55,56 @@ public class CausalClientBase {
         }
     }
 
+    public CompletableFuture<Void> requestAsync(SessionRequestable session, String impressionId,
+            Requestable... requests) throws InterruptedException {
+        try {
+            JsonGenerator _gen = createGenerator();
+            _gen.writeStartObject();
+            _gen.writeFieldName("args");
+            session.serializeArgs(_gen);
+            _gen.writeStringField("impressionId", impressionId);
+            for (Requestable req : requests) {
+                req.setSession(session);
+            }
+            return requestAsync(_gen, requests);
+        } catch (IOException e) {
+            // this shouldn't happen because the generator writes to RAM.
+            throw new RuntimeException("Error serializing to RAM");
+        }
+    }
+
+    public CompletableFuture<Void> requestAsync(SessionRequestable session, Requestable... requests)
+            throws InterruptedException {
+        return requestAsync(session, UUID.randomUUID().toString(), requests);
+    }
+
+    public void request(SessionRequestable session, String impressionId, Requestable... requests)
+            throws InterruptedException {
+        CompletableFuture<Void> result = requestAsync(session, impressionId, requests);
+        try {
+            result.get();
+        } catch (ExecutionException e) {
+            // this should not happen because all errors from the request are recoverable
+            throw new RuntimeException("Unexpected exception.", e);
+        }
+    }
+
+    public void request(SessionRequestable session, Requestable... requests)
+            throws InterruptedException {
+        request(session, UUID.randomUUID().toString(), requests);
+    }
+
     // the generator has the device and session args encoded. Encode the rest and
     // execute the
     // request.
-    protected CompletableFuture<Void> requestAsync(JsonGenerator gen, String deviceId,
-            Requestable... requests) throws InterruptedException {
+    protected CompletableFuture<Void> requestAsync(JsonGenerator gen, Requestable... requests)
+            throws InterruptedException {
 
         try {
             gen.writeFieldName("reqs");
             gen.writeStartArray();
+
             for (Requestable request : requests) {
-                request.setDeviceId(deviceId);
                 gen.writeStartObject();
                 gen.writeStringField("name", request.featureName());
                 gen.writeFieldName("args");
@@ -201,6 +242,7 @@ public class CausalClientBase {
         return;
     }
 
+    // skip over the value that the parser is currently pointing to
     public static void consumeValue(JsonParser parser) throws IOException {
         switch (parser.currentToken()) {
             case START_ARRAY:
@@ -225,7 +267,7 @@ public class CausalClientBase {
         // process
         m_threadPool.submit(() -> {
             try {
-                // note, we switched from sendAsync because that had issues with runaway thread
+                // note, we switched away from sendAsync because that had issues with runaway thread
                 // allocation
                 HttpResponse<String> resp = m_client.send(req, BodyHandlers.ofString());
                 if (resp.statusCode() != 200) {
@@ -248,13 +290,14 @@ public class CausalClientBase {
      * @param fieldName
      * @return
      */
-    public JsonGenerator externalGenerator(String deviceId, List<String> impressionIds,
+    public JsonGenerator externalGenerator(SessionRequestable session, List<String> impressionIds,
             String featureName, String fieldName) {
         StringWriter sw = new StringWriter();
         try {
             JsonGenerator gen = m_mapper.getFactory().createGenerator(sw);
             gen.writeStartObject();
-            gen.writeObjectField("deviceId", deviceId);
+            gen.writeFieldName("id");
+            session.serializeIds(gen);
             gen.writeObjectField("feature", featureName);
             if (impressionIds.size() > 0)
                 gen.writeObjectField("impressionId", impressionIds.get(0));
