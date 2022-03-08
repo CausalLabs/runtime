@@ -36,7 +36,8 @@ public interface Requested {
     // Deserialize the arguments from a client into this object
     public void deserializeArgs(JsonParser next) throws ApiException;
 
-    // Serialize the result to be sent to the client
+    // Serialize the result to be sent to the client. Just writes the fields. You must be in an
+    // object context
     public void serializeResponse(JsonGenerator gen);
 
     //////////////////////////////////////////////////////////////////////////////////

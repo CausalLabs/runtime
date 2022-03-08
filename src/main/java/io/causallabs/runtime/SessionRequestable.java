@@ -1,6 +1,7 @@
 package io.causallabs.runtime;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 
 /**
  * Marker interface for the session request objects
@@ -13,4 +14,10 @@ public abstract class SessionRequestable {
     // serialize the session identifiers to be sent to the impression server.
     // outputs them as an object
     public abstract void serializeIds(JsonGenerator gen);
+
+    // Take a response from the server and deserialize it into this object.
+    // ApiExceptions can happen if we try to deserialize a value to somewhere
+    // it can't go. IE deserializing a string to an int.
+    abstract public void deserializeResponse(JsonParser parser) throws ApiException;
+
 }
