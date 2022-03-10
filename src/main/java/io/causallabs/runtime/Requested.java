@@ -14,12 +14,11 @@ public interface Requested {
     /** reset everything to default values */
     public void reset();
 
-    //////////////////////////////////////////////////////////////////////////////////
-    // Memoization support.
-    //////////////////////////////////////////////////////////////////////////////////
-
     // Return true if the request should be memoized with the previous request
     public boolean argsMatch(Requested obj);
+
+    // Return true if the @session_key matches. If not, we need to create a new session
+    public boolean keysMatch(Requested obj);
 
     // Increment the count if another request was just memoized with this one.
     // optionally pass a new impressionId to keep track of
