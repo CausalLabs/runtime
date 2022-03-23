@@ -28,10 +28,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CausalClientBase {
+public class CausalClient {
 
-    protected CausalClientBase(String impressionServerUrl) {
-        m_impressionServerUrl = impressionServerUrl;
+    public static synchronized CausalClient getInstance() {
+        if (m_instance == null) {
+            m_instance = new CausalClient();
+        }
+        return m_instance;
+    }
+
+    protected CausalClient() {
+        if (System.getenv("CAUSAL_ISERVER") != null)
+            m_impressionServerUrl = System.getenv("CAUSAL_ISERVER");
+        else {
+            logger.warn("CAUSAL_ISERVER not set. Using http://localhost:3004/iserver");
+            m_impressionServerUrl = "http://localhost:3004/iserver";
+        }
     }
 
     public JsonGenerator createGenerator() {
@@ -61,7 +73,7 @@ public class CausalClientBase {
     }
 
     public CompletableFuture<Void> requestAsync(SessionRequestable session, String impressionId,
-            Requestable... requests) throws InterruptedException {
+            Requestable... requests) {
         try {
             JsonGenerator _gen = createGenerator();
             _gen.writeStartObject();
@@ -76,30 +88,32 @@ public class CausalClientBase {
     }
 
     public void request(SessionRequestable session, Requestable... requests)
-            throws InterruptedException {
+            throws InterruptedException, ApiException {
         request(session, UUID.randomUUID().toString(), requests);
     }
 
     public void request(SessionRequestable session, String impressionId, Requestable... requests)
-            throws InterruptedException {
-        CompletableFuture<Void> result = requestAsync(session, impressionId, requests);
+            throws InterruptedException, ApiException {
+        request(session, impressionId, requests);
         try {
-            result.get();
-        } catch (ExecutionException e) {
-            // this should not happen because all errors from the request are recoverable
-            throw new RuntimeException("Unexpected exception.", e);
+            JsonGenerator _gen = createGenerator();
+            _gen.writeStartObject();
+            _gen.writeFieldName("args");
+            session.serializeArgs(_gen);
+            _gen.writeStringField("impressionId", impressionId);
+            request(session, _gen, requests);
+        } catch (IOException e) {
+            // this shouldn't happen because the generator writes to RAM.
+            throw new RuntimeException("Error serializing to RAM");
         }
+
     }
 
-    // the generator has the device and session args encoded. Encode the rest and
-    // execute the
-    // request.
-    protected CompletableFuture<Void> requestAsync(SessionRequestable session, JsonGenerator gen,
-            Requestable... requests) throws InterruptedException {
+    private void setupRequest(SessionRequestable session, JsonGenerator gen,
+            Requestable[] requests) {
         for (Requestable req : requests) {
             req.setSession(session);
         }
-
         try {
             gen.writeFieldName("reqs");
             gen.writeStartArray();
@@ -118,117 +132,151 @@ public class CausalClientBase {
             // this should never happen because we are writing to a string.
             throw new RuntimeException("IO Error creating request, using control", e);
         }
+
+    }
+
+    private void handleResponse(HttpResponse<InputStream> resp, SessionRequestable session,
+            JsonGenerator gen, Requestable[] requests) throws ApiException, IOException {
+        if (resp.statusCode() != 200) {
+            // if we get an error code, throw an Api exception
+            try {
+                ApiException exception = new ApiException("Error code " + resp.statusCode()
+                        + " from server: " + new String(resp.body().readAllBytes()));
+                errorOutRequests(exception, requests);
+                throw exception;
+            } catch (IOException e) {
+                errorOutRequests(
+                        new ApiException("Error code " + resp.statusCode() + " from server"),
+                        requests);
+                throw e;
+            }
+        }
+
+        try {
+            JsonParser parser = m_mapper.getFactory().createParser(resp.body());
+            if (parser.nextToken() != JsonToken.START_OBJECT) {
+                IOException exception = new IOException("Malformed response, using control.");
+                errorOutRequests(exception, requests);
+                throw exception;
+            }
+            parser.nextToken();
+            if (parser.getCurrentName().equals("session")) {
+                try {
+                    parser.nextToken();
+                    session.deserializeResponse(parser);
+                } catch (ApiException e) {
+                    errorOutRequests(e, requests);
+                    throw e;
+                }
+            }
+            if (!parser.getCurrentName().equals("impressions")) {
+                IOException exception = new IOException(
+                        "Malformed response, expecting 'impressions', using control.");
+                errorOutRequests(exception, requests);
+                throw exception;
+            }
+
+            if (!JsonToken.START_ARRAY.equals(parser.nextToken())) {
+                IOException exception =
+                        new IOException("Malformed response, expecting array, using control.");
+                errorOutRequests(exception, requests);
+                throw exception;
+            }
+            parser.nextToken();
+            ApiException delayedException = null;
+            for (Requestable request : requests) {
+                if (parser.currentToken().equals(JsonToken.END_ARRAY)) {
+                    IOException exception =
+                            new IOException("Response too short, using control values.");
+                    errorOutRequests(exception, requests);
+                    throw exception;
+                }
+                if (parser.currentToken().equals(JsonToken.VALUE_STRING)) {
+                    if (parser.getText().equals("OFF")) {
+                        request.setActive(false);
+                        parser.nextToken();
+                        continue;
+                    } else if (parser.getText().equals("UNKNOWN")) {
+                        // server doesn't know about this feature yet, this
+                        // error is expected during schema migration, so
+                        // shouldn't throw an exception
+                        request.setError(new ApiException("Server doesn't know feature "
+                                + request.featureName() + ", using control."));
+                        logger.info(request.getError().getMessage());
+                        parser.nextToken();
+                        continue;
+                    }
+                }
+                if (!parser.currentToken().equals(JsonToken.START_OBJECT)) {
+                    delayedException = new ApiException("Malformed response for "
+                            + request.featureName() + ", using control values.");
+                    request.setError(delayedException);
+                    logger.warn(request.getError().getMessage());;
+                    consumeValue(parser);
+                }
+                try {
+                    request.deserializeResponse(parser);
+                } catch (ApiException e) {
+                    delayedException = new ApiException("Error parsing response from server for "
+                            + request.featureName() + ", reverting to control.");
+                    request.setError(delayedException);
+                    logger.warn(request.getError().getMessage());;
+                }
+            }
+            if (delayedException != null)
+                throw delayedException;
+        } catch (JsonParseException e1) {
+            ApiException exception = new ApiException("Malformed response, using control.", e1);
+            errorOutRequests(exception, requests);
+            throw exception;
+        } catch (IOException e1) {
+            // may happen if we lose connection mid string
+            errorOutRequests(e1, requests);
+            throw e1;
+        }
+    }
+
+    protected void request(SessionRequestable session, JsonGenerator gen, Requestable... requests)
+            throws IOException, InterruptedException, ApiException {
+        setupRequest(session, gen, requests);
+        HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/features"))
+                .setHeader("user-agent", "Causal java client")
+                .header("Content-Type", "application/json").header("Accept", "text/plain")
+                .POST(BodyPublishers.ofString(getResult(gen))).build();
+        HttpResponse<InputStream> resp = m_client.send(req, BodyHandlers.ofInputStream());
+        handleResponse(resp, session, gen, requests);
+    }
+
+    // the generator has the device and session args encoded. Encode the rest and
+    // execute the
+    // request.
+    protected CompletableFuture<Void> requestAsync(SessionRequestable session, JsonGenerator gen,
+            Requestable... requests) {
+
+        setupRequest(session, gen, requests);
+
         HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/features"))
                 .setHeader("user-agent", "Causal java client")
                 .header("Content-Type", "application/json").header("Accept", "text/plain")
                 .POST(BodyPublishers.ofString(getResult(gen))).build();
         CompletableFuture<HttpResponse<InputStream>> responseFuture =
                 m_client.sendAsync(req, BodyHandlers.ofInputStream());
-        CompletableFuture<Void> finalFuture = responseFuture.handle(
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        responseFuture.handle(
                 (BiFunction<HttpResponse<InputStream>, Throwable, Void>) (resp, exception) -> {
 
                     if (exception != null) {
                         // Error while connecting to the server
                         errorOutRequests(exception, requests);
-                        return null;
+                        result.completeExceptionally(exception);
                     }
-                    if (resp.statusCode() != 200) {
-                        // if we get an error code, throw an Api exception
-                        try {
-                            errorOutRequests(
-                                    new ApiException(
-                                            "Error code " + resp.statusCode() + " from server: "
-                                                    + new String(resp.body().readAllBytes())),
-                                    requests);
-                        } catch (IOException e) {
-                            errorOutRequests(
-                                    new ApiException(
-                                            "Error code " + resp.statusCode() + " from server"),
-                                    requests);
-                        }
-                        return null;
-                    }
-
                     try {
-                        JsonParser parser = m_mapper.getFactory().createParser(resp.body());
-                        if (parser.nextToken() != JsonToken.START_OBJECT) {
-                            errorOutRequests(new IOException("Malformed response, using control."),
-                                    requests);
-                            return null;
-                        }
-                        parser.nextToken();
-                        if (parser.getCurrentName().equals("session")) {
-                            try {
-                                parser.nextToken();
-                                session.deserializeResponse(parser);
-                            } catch (ApiException e) {
-                                errorOutRequests(new ApiException(
-                                        "Error parsing response from server for the session, reverting to control."),
-                                        requests);
-                                return null;
-                            }
-                        }
-                        if (!parser.getCurrentName().equals("impressions")) {
-                            errorOutRequests(new IOException(
-                                    "Malformed response, expecting 'impressions', using control."),
-                                    requests);
-                            return null;
-                        }
-
-                        if (!JsonToken.START_ARRAY.equals(parser.nextToken())) {
-                            errorOutRequests(
-                                    new IOException(
-                                            "Malformed response, expecting array, using control."),
-                                    requests);
-                            return null;
-                        }
-                        parser.nextToken();
-                        for (Requestable request : requests) {
-                            if (parser.currentToken().equals(JsonToken.END_ARRAY)) {
-                                errorOutRequests(
-                                        new IOException(
-                                                "Response too short, using control values."),
-                                        requests);
-                                return null;
-                            }
-                            if (parser.currentToken().equals(JsonToken.VALUE_STRING)) {
-                                if (parser.getText().equals("OFF")) {
-                                    request.setActive(false);
-                                    parser.nextToken();
-                                    continue;
-                                } else if (parser.getText().equals("UNKNOWN")) {
-                                    // server doesn't know about this feature yet
-                                    request.setError(new ApiException("Server doesn't know feature "
-                                            + request.featureName() + ", using control."));
-                                    logger.info(request.getError().getMessage());
-                                    parser.nextToken();
-                                    continue;
-                                }
-                            }
-                            if (!parser.currentToken().equals(JsonToken.START_OBJECT)) {
-                                request.setError(new ApiException("Malformed response for "
-                                        + request.featureName() + ", using control values."));
-                                logger.warn(request.getError().getMessage());;
-                                consumeValue(parser);
-                            }
-                            try {
-                                request.deserializeResponse(parser);
-                            } catch (ApiException e) {
-                                request.setError(
-                                        new ApiException("Error parsing response from server for "
-                                                + request.featureName()
-                                                + ", reverting to control."));
-                                logger.warn(request.getError().getMessage());;
-                            }
-                        }
-                    } catch (JsonParseException e1) {
-                        errorOutRequests(new ApiException("Malformed response, using control.", e1),
-                                requests);
-                    } catch (IOException e1) {
-                        // may happen if we lose connection mid string
-                        errorOutRequests(new ApiException("Malformed response, using control.", e1),
-                                requests);
+                        handleResponse(resp, session, gen, requests);
+                        result.complete(null);
+                    } catch (ApiException | IOException e2) {
+                        result.completeExceptionally(e2);
                     }
+                    result.complete(null);
                     return null;
                 });
 
@@ -236,12 +284,12 @@ public class CausalClientBase {
         // the impression registers
         m_threadPool.submit(() -> {
             try {
-                finalFuture.get();
+                result.get();
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
-        return finalFuture;
+        return result;
     }
 
     // mark the requests with the recoverable error and log it.
@@ -382,8 +430,9 @@ public class CausalClientBase {
         });
     }
 
+    private static CausalClient m_instance = null;
     private String m_impressionServerUrl;
     HttpClient m_client = HttpClient.newHttpClient();
-    public static final Logger logger = LoggerFactory.getLogger(CausalClientBase.class);
+    public static final Logger logger = LoggerFactory.getLogger(CausalClient.class);
     public static final ObjectMapper m_mapper = new ObjectMapper();
 }
