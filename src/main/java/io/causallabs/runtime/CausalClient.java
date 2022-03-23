@@ -88,25 +88,23 @@ public class CausalClient {
     }
 
     public void request(SessionRequestable session, Requestable... requests)
-            throws InterruptedException, ApiException {
+            throws InterruptedException, IOException {
         request(session, UUID.randomUUID().toString(), requests);
     }
 
     public void request(SessionRequestable session, String impressionId, Requestable... requests)
-            throws InterruptedException, ApiException {
-        request(session, impressionId, requests);
+            throws InterruptedException, IOException {
+        JsonGenerator _gen = createGenerator();
         try {
-            JsonGenerator _gen = createGenerator();
             _gen.writeStartObject();
             _gen.writeFieldName("args");
             session.serializeArgs(_gen);
             _gen.writeStringField("impressionId", impressionId);
-            request(session, _gen, requests);
         } catch (IOException e) {
             // this shouldn't happen because the generator writes to RAM.
             throw new RuntimeException("Error serializing to RAM");
         }
-
+        request(session, _gen, requests);
     }
 
     private void setupRequest(SessionRequestable session, JsonGenerator gen,
@@ -136,11 +134,11 @@ public class CausalClient {
     }
 
     private void handleResponse(HttpResponse<InputStream> resp, SessionRequestable session,
-            JsonGenerator gen, Requestable[] requests) throws ApiException, IOException {
+            JsonGenerator gen, Requestable[] requests) throws IOException {
         if (resp.statusCode() != 200) {
             // if we get an error code, throw an Api exception
             try {
-                ApiException exception = new ApiException("Error code " + resp.statusCode()
+                IOException exception = new IOException("Error code " + resp.statusCode()
                         + " from server: " + new String(resp.body().readAllBytes()));
                 errorOutRequests(exception, requests);
                 throw exception;
@@ -165,8 +163,9 @@ public class CausalClient {
                     parser.nextToken();
                     session.deserializeResponse(parser);
                 } catch (ApiException e) {
+                    IOException exception = new IOException("Error while parsing result", e);
                     errorOutRequests(e, requests);
-                    throw e;
+                    throw exception;
                 }
             }
             if (!parser.getCurrentName().equals("impressions")) {
@@ -183,7 +182,7 @@ public class CausalClient {
                 throw exception;
             }
             parser.nextToken();
-            ApiException delayedException = null;
+            IOException delayedException = null;
             for (Requestable request : requests) {
                 if (parser.currentToken().equals(JsonToken.END_ARRAY)) {
                     IOException exception =
@@ -208,7 +207,7 @@ public class CausalClient {
                     }
                 }
                 if (!parser.currentToken().equals(JsonToken.START_OBJECT)) {
-                    delayedException = new ApiException("Malformed response for "
+                    delayedException = new IOException("Malformed response for "
                             + request.featureName() + ", using control values.");
                     request.setError(delayedException);
                     logger.warn(request.getError().getMessage());;
@@ -217,8 +216,8 @@ public class CausalClient {
                 try {
                     request.deserializeResponse(parser);
                 } catch (ApiException e) {
-                    delayedException = new ApiException("Error parsing response from server for "
-                            + request.featureName() + ", reverting to control.");
+                    delayedException = new IOException("Error parsing response from server for "
+                            + request.featureName() + ", reverting to control.", e);
                     request.setError(delayedException);
                     logger.warn(request.getError().getMessage());;
                 }
@@ -226,7 +225,7 @@ public class CausalClient {
             if (delayedException != null)
                 throw delayedException;
         } catch (JsonParseException e1) {
-            ApiException exception = new ApiException("Malformed response, using control.", e1);
+            IOException exception = new IOException("Malformed response, using control.", e1);
             errorOutRequests(exception, requests);
             throw exception;
         } catch (IOException e1) {
@@ -237,13 +236,19 @@ public class CausalClient {
     }
 
     protected void request(SessionRequestable session, JsonGenerator gen, Requestable... requests)
-            throws IOException, InterruptedException, ApiException {
+            throws InterruptedException, IOException {
         setupRequest(session, gen, requests);
         HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/features"))
                 .setHeader("user-agent", "Causal java client")
                 .header("Content-Type", "application/json").header("Accept", "text/plain")
                 .POST(BodyPublishers.ofString(getResult(gen))).build();
-        HttpResponse<InputStream> resp = m_client.send(req, BodyHandlers.ofInputStream());
+        HttpResponse<InputStream> resp;
+        try {
+            resp = m_client.send(req, BodyHandlers.ofInputStream());
+        } catch (IOException e) {
+            errorOutRequests(e, requests);
+            throw e;
+        }
         handleResponse(resp, session, gen, requests);
     }
 
@@ -273,7 +278,7 @@ public class CausalClient {
                     try {
                         handleResponse(resp, session, gen, requests);
                         result.complete(null);
-                    } catch (ApiException | IOException e2) {
+                    } catch (IOException e2) {
                         result.completeExceptionally(e2);
                     }
                     result.complete(null);
