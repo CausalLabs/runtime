@@ -9,6 +9,7 @@ repositories {
 }
 
 dependencies {
+    implementation 'org.apache.httpcomponents.client5:httpclient5:5.1.3'
     api 'com.fasterxml.jackson.core:jackson-databind:2.13.1'
     api 'org.apache.avro:avro:1.11.0'
     api 'org.slf4j:slf4j-api:1.7.30'
@@ -16,6 +17,10 @@ dependencies {
 
 group = 'io.causallabs'
 version = System.env.MAVEN_VERSION
+
+compileJava {
+    options.release = 8
+}
 
 java {
     withJavadocJar()
