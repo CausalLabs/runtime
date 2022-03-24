@@ -1,30 +1,32 @@
 package io.causallabs.runtime;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringWriter;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpRequest.BodyPublishers;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
+import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
+import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
+import org.apache.hc.client5.http.async.methods.SimpleRequestProducer;
+import org.apache.hc.client5.http.async.methods.SimpleResponseConsumer;
+import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
+import org.apache.hc.core5.concurrent.FutureCallback;
+import org.apache.hc.core5.http.ContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +46,9 @@ public class CausalClient {
             logger.warn("CAUSAL_ISERVER not set. Using http://localhost:3004/iserver");
             m_impressionServerUrl = "http://localhost:3004/iserver";
         }
+
+        m_asyncClient = HttpAsyncClients.createDefault();
+        m_asyncClient.start();
     }
 
     public JsonGenerator createGenerator() {
@@ -133,25 +138,24 @@ public class CausalClient {
 
     }
 
-    private void handleResponse(HttpResponse<InputStream> resp, SessionRequestable session,
+    private void handleResponse(SimpleHttpResponse resp, SessionRequestable session,
             JsonGenerator gen, Requestable[] requests) throws IOException {
-        if (resp.statusCode() != 200) {
+        if (resp.getCode() != 200) {
             // if we get an error code, throw an Api exception
             try {
-                IOException exception = new IOException("Error code " + resp.statusCode()
-                        + " from server: " + new String(resp.body().readAllBytes()));
+                IOException exception = new IOException(
+                        "Error code " + resp.getCode() + " from server: " + resp.getBodyText());
                 errorOutRequests(exception, requests);
                 throw exception;
             } catch (IOException e) {
-                errorOutRequests(
-                        new ApiException("Error code " + resp.statusCode() + " from server"),
+                errorOutRequests(new ApiException("Error code " + resp.getCode() + " from server"),
                         requests);
                 throw e;
             }
         }
 
         try {
-            JsonParser parser = m_mapper.getFactory().createParser(resp.body());
+            JsonParser parser = m_mapper.getFactory().createParser(resp.getBodyText());
             if (parser.nextToken() != JsonToken.START_OBJECT) {
                 IOException exception = new IOException("Malformed response, using control.");
                 errorOutRequests(exception, requests);
@@ -237,19 +241,12 @@ public class CausalClient {
 
     protected void request(SessionRequestable session, JsonGenerator gen, Requestable... requests)
             throws InterruptedException, IOException {
-        setupRequest(session, gen, requests);
-        HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/features"))
-                .setHeader("user-agent", "Causal java client")
-                .header("Content-Type", "application/json").header("Accept", "text/plain")
-                .POST(BodyPublishers.ofString(getResult(gen))).build();
-        HttpResponse<InputStream> resp;
+        CompletableFuture<Void> result = requestAsync(session, gen, requests);
         try {
-            resp = m_client.send(req, BodyHandlers.ofInputStream());
-        } catch (IOException e) {
-            errorOutRequests(e, requests);
-            throw e;
+            result.get();
+        } catch (ExecutionException e) {
+            throw (IOException) e.getCause();
         }
-        handleResponse(resp, session, gen, requests);
     }
 
     // the generator has the device and session args encoded. Encode the rest and
@@ -258,42 +255,37 @@ public class CausalClient {
     protected CompletableFuture<Void> requestAsync(SessionRequestable session, JsonGenerator gen,
             Requestable... requests) {
 
+
         setupRequest(session, gen, requests);
-
-        HttpRequest req = HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/features"))
-                .setHeader("user-agent", "Causal java client")
-                .header("Content-Type", "application/json").header("Accept", "text/plain")
-                .POST(BodyPublishers.ofString(getResult(gen))).build();
-        CompletableFuture<HttpResponse<InputStream>> responseFuture =
-                m_client.sendAsync(req, BodyHandlers.ofInputStream());
         CompletableFuture<Void> result = new CompletableFuture<>();
-        responseFuture.handle(
-                (BiFunction<HttpResponse<InputStream>, Throwable, Void>) (resp, exception) -> {
+        asyncSendJson(URI.create(m_impressionServerUrl + "/features"), getResult(gen),
+                new FutureCallback<SimpleHttpResponse>() {
 
-                    if (exception != null) {
+                    @Override
+                    public void completed(SimpleHttpResponse resp) {
+
+                        try {
+                            handleResponse(resp, session, gen, requests);
+                            result.complete(null);
+                        } catch (IOException e2) {
+                            result.completeExceptionally(e2);
+                        }
+                    }
+
+                    @Override
+                    public void failed(Exception exception) {
                         // Error while connecting to the server
                         errorOutRequests(exception, requests);
                         result.completeExceptionally(exception);
                     }
-                    try {
-                        handleResponse(resp, session, gen, requests);
-                        result.complete(null);
-                    } catch (IOException e2) {
-                        result.completeExceptionally(e2);
+
+                    @Override
+                    public void cancelled() {
+                        result.completeExceptionally(new InterruptedException());
                     }
-                    result.complete(null);
-                    return null;
+
                 });
 
-        // wait for the result, cause if we dont, then the process may terminate before
-        // the impression registers
-        m_threadPool.submit(() -> {
-            try {
-                result.get();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
         return result;
     }
 
@@ -321,28 +313,10 @@ public class CausalClient {
 
     // Send the Json payload to the signal handler (asynchronously)
     public void signal(JsonGenerator gen) {
-        final HttpRequest req =
-                HttpRequest.newBuilder(URI.create(m_impressionServerUrl + "/signal"))
-                        .setHeader("user-agent", "Causal java client")
-                        .header("Content-Type", "application/json").header("Accept", "text/plain")
-                        .POST(BodyPublishers.ofString(getResult(gen))).build();
-
-        // the threads are not deamons, so they should finish the signaling before terminating the
-        // process
-        m_threadPool.submit(() -> {
-            try {
-                // note, we switched away from sendAsync because that had issues with runaway thread
-                // allocation
-                HttpResponse<String> resp = m_client.send(req, BodyHandlers.ofString());
-                if (resp.statusCode() != 200) {
-                    String body = new String(resp.body().getBytes());
-                    logger.error("Error signaling impression server: " + body);
-                }
-            } catch (Exception e) {
-                logger.error("Error signaling impression server: " + e.getMessage(), e);
-            }
-        });
+        asyncSendJson("signalling event", URI.create(m_impressionServerUrl + "/signal"),
+                getResult(gen));
     }
+
 
     /**
      * Make a jackson generator to serialize an external callback. The generator is left at the
@@ -381,32 +355,55 @@ public class CausalClient {
     public void signalExternal(JsonGenerator gen) {
         try {
             gen.writeEndObject();
-            HttpRequest req = HttpRequest
-                    .newBuilder(URI.create(m_impressionServerUrl + "/external"))
-                    .setHeader("user-agent", "Causal java client")
-                    .header("Content-Type", "application/json").header("Accept", "text/plain")
-                    .POST(BodyPublishers.ofString(getResult(gen))).build();
-            CompletableFuture<Void> future =
-                    m_client.sendAsync(req, BodyHandlers.ofString()).thenAcceptAsync(resp -> {
-                        if (resp.statusCode() != 200) {
-                            String body = new String(resp.body().getBytes());
-                            logger.error("Error writing external: " + body);
-                            throw new RuntimeException("Error writing external: " + body);
-                        }
-                    });
-            m_threadPool.submit(() -> {
-                try {
-                    // wait for the result, cause if we dont, then the process may terminate before
-                    // the signal is sent
-                    future.get();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
         } catch (IOException e) {
-            // we are writing to a string, so this should never fail
-            throw new RuntimeException("Error creating in memory generator.", e);
+            // should never happen
+            logger.error("Error serializing to ram, dropping request", e);
         }
+        asyncSendJson("writing external", URI.create(m_impressionServerUrl + "/external"),
+                getResult(gen));
+    }
+
+    private void asyncSendJson(String what, URI uri, String body) {
+        asyncSendJson(uri, body, new FutureCallback<SimpleHttpResponse>() {
+
+            @Override
+            public void completed(SimpleHttpResponse result) {
+                if (result.getCode() != 200) {
+                    logger.error(
+                            "Error " + result.getCode() + " " + what + ": " + result.getBodyText());
+                }
+            }
+
+            @Override
+            public void failed(Exception ex) {
+                logger.error("Error " + what + ": " + ex.getMessage(), ex);
+            }
+
+            @Override
+            public void cancelled() {
+                logger.error("Request cancelled " + what);
+            }
+        });
+    }
+
+    private void asyncSendJson(URI uri, String body, FutureCallback<SimpleHttpResponse> handler) {
+        SimpleHttpRequest reqest =
+                SimpleRequestBuilder.post(uri).setBody(body, ContentType.APPLICATION_JSON)
+                        .setHeader("user-agent", "Causal java client")
+                        .addHeader("Accept", "text/plain").build();
+
+        Future<SimpleHttpResponse> future = m_asyncClient.execute(
+                SimpleRequestProducer.create(reqest), SimpleResponseConsumer.create(), handler);
+
+        m_threadPool.submit(() -> {
+            try {
+                // wait for the result, cause if we dont, then the process may terminate before
+                // the signal is sent
+                future.get();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     // need a daemon thread pool to wait for the asynchronous operations because the
@@ -437,7 +434,7 @@ public class CausalClient {
 
     private static CausalClient m_instance = null;
     private String m_impressionServerUrl;
-    HttpClient m_client = HttpClient.newHttpClient();
+    private final CloseableHttpAsyncClient m_asyncClient;
     public static final Logger logger = LoggerFactory.getLogger(CausalClient.class);
     public static final ObjectMapper m_mapper = new ObjectMapper();
 }
