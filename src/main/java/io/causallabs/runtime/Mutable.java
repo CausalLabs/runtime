@@ -2,6 +2,9 @@ package io.causallabs.runtime;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.IndexedRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,11 +19,11 @@ public class Mutable<T> {
     public void setInitialValue(T x) {
         // we could make this a bunch more memory efficient if we need to - TODO
         values.clear();
-        values.add(new Record<T>(System.currentTimeMillis(), x));
+        values.add(new Record<T>(Mutable.getClock().millis(), x));
     }
 
     public void setValue(T x) {
-        long now = System.currentTimeMillis();
+        long now = Mutable.getClock().millis();
         if (!values.isEmpty()) {
             values.get(values.size() - 1).endTime = now - 1;
         }
@@ -33,7 +36,7 @@ public class Mutable<T> {
 
     public List<Record<T>> getHistory() {
         if (!values.isEmpty()) {
-            values.get(values.size() - 1).endTime = System.currentTimeMillis() - 1;
+            values.get(values.size() - 1).endTime = Mutable.getClock().millis() - 1;
         }
         return values;
     }
@@ -73,4 +76,20 @@ public class Mutable<T> {
     }
 
     ArrayList<Record<T>> values = new ArrayList<>();
+
+    public static Clock getClock() {
+        return m_clock;
+    }
+
+    // we allow swapping out the clocks for integration testing.
+    // do not use this
+    public static void setClock(Clock clock) {
+        logger.warn("Replacing system defined clock");
+        m_clock = clock;
+    }
+
+    // here so it can be manipulated for integration tests.
+    private static Clock m_clock = Clock.systemUTC();
+    private static Logger logger = LoggerFactory.getLogger(Mutable.class);
+
 }
