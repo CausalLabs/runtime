@@ -66,23 +66,15 @@ publishing {
             }
         }
     }
+
     repositories {
         maven {
-            // change URLs to point to your repos, e.g. http://my.org/repo
-            def releasesRepoUrl = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
-            def snapshotsRepoUrl = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
-            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-            credentials {
-              username = System.env.OSSRH_USERNAME
-              password = System.env.OSSRH_PASSWORD
+            url = uri("s3://maven.causallabs.io/")
+            authentication {
+              awsIm(AwsImAuthentication)
             }
         }
     }
-}
-
-signing {
-    useInMemoryPgpKeys(System.env.RUNTIME_SIGNING_KEY, System.env.RUNTIME_SIGNING_PASSWORD)
-    sign publishing.publications.mavenJava
 }
 
 javadoc {
