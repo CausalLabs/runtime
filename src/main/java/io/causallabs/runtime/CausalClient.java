@@ -226,6 +226,25 @@ public class CausalClient {
                     logger.warn(request.getError().getMessage());;
                 }
             }
+            if (parser.nextToken() == JsonToken.FIELD_NAME) {
+                if (parser.currentName().equals("errors")) {
+                    // handle any errors from the request
+                    if (!JsonToken.START_ARRAY.equals(parser.nextToken())) {
+                        IOException exception = new IOException(
+                                "Malformed response, expecting array, using control.");
+                        errorOutRequests(exception, requests);
+                        throw exception;
+                    }
+                    int index = 0;
+                    while (parser.nextToken() != JsonToken.END_ARRAY) {
+                        if (parser.currentToken() == JsonToken.VALUE_NULL)
+                            index++;
+                        else {
+                            requests[index++].setError(new ApiException(parser.getText()));
+                        }
+                    }
+                }
+            }
             if (delayedException != null)
                 throw delayedException;
         } catch (JsonParseException e1) {
