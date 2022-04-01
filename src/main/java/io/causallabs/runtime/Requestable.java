@@ -24,7 +24,7 @@ public abstract class Requestable {
      * 
      * @return If the request resulted in a recoverable error, the error, else null.
      */
-    public Throwable getError() {
+    public Exception getError() {
         return throwable;
     };
 
@@ -43,11 +43,11 @@ public abstract class Requestable {
     private boolean _active = false;
 
     // recoverable error support
-    public void setError(Throwable t) {
+    public void setError(Exception t) {
         throwable = t;
     };
 
-    private Throwable throwable = null;
+    private Exception throwable = null;
 
     // serialize the arguments to be sent to the impression server. gen should
     // already be in the object context

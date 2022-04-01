@@ -93,12 +93,12 @@ public class CausalClient {
     }
 
     public void request(SessionRequestable session, Requestable... requests)
-            throws InterruptedException, IOException {
+            throws InterruptedException, ApiException {
         request(session, UUID.randomUUID().toString(), requests);
     }
 
     public void request(SessionRequestable session, String impressionId, Requestable... requests)
-            throws InterruptedException, IOException {
+            throws InterruptedException, ApiException {
         JsonGenerator _gen = createGenerator();
         try {
             _gen.writeStartObject();
@@ -139,25 +139,20 @@ public class CausalClient {
     }
 
     private void handleResponse(SimpleHttpResponse resp, SessionRequestable session,
-            JsonGenerator gen, Requestable[] requests) throws IOException {
+            JsonGenerator gen, Requestable[] requests) throws ApiException {
         if (resp.getCode() != 200) {
             // if we get an error code, throw an Api exception
-            try {
-                IOException exception = new IOException(
-                        "Error code " + resp.getCode() + " from server: " + resp.getBodyText());
-                errorOutRequests(exception, requests);
-                throw exception;
-            } catch (IOException e) {
-                errorOutRequests(new ApiException("Error code " + resp.getCode() + " from server"),
-                        requests);
-                throw e;
-            }
+            ApiException exception = new ApiException(resp.getCode(),
+                    "Error code " + resp.getCode() + " from server: " + resp.getBodyText());
+            errorOutRequests(exception, requests);
+            throw exception;
         }
 
         try {
             JsonParser parser = m_mapper.getFactory().createParser(resp.getBodyText());
             if (parser.nextToken() != JsonToken.START_OBJECT) {
-                IOException exception = new IOException("Malformed response, using control.");
+                ApiException exception =
+                        new ApiException(500, "Malformed response, using control.");
                 errorOutRequests(exception, requests);
                 throw exception;
             }
@@ -167,30 +162,29 @@ public class CausalClient {
                     parser.nextToken();
                     session.deserializeResponse(parser);
                 } catch (ApiException e) {
-                    IOException exception = new IOException("Error while parsing result", e);
                     errorOutRequests(e, requests);
-                    throw exception;
+                    throw e;
                 }
             }
             if (!parser.getCurrentName().equals("impressions")) {
-                IOException exception = new IOException(
+                ApiException exception = new ApiException(500,
                         "Malformed response, expecting 'impressions', using control.");
                 errorOutRequests(exception, requests);
                 throw exception;
             }
 
             if (!JsonToken.START_ARRAY.equals(parser.nextToken())) {
-                IOException exception =
-                        new IOException("Malformed response, expecting array, using control.");
+                ApiException exception = new ApiException(500,
+                        "Malformed response, expecting array, using control.");
                 errorOutRequests(exception, requests);
                 throw exception;
             }
             parser.nextToken();
-            IOException delayedException = null;
+            ApiException delayedException = null;
             for (Requestable request : requests) {
                 if (parser.currentToken().equals(JsonToken.END_ARRAY)) {
-                    IOException exception =
-                            new IOException("Response too short, using control values.");
+                    ApiException exception =
+                            new ApiException(500, "Response too short, using control values.");
                     errorOutRequests(exception, requests);
                     throw exception;
                 }
@@ -211,7 +205,7 @@ public class CausalClient {
                     }
                 }
                 if (!parser.currentToken().equals(JsonToken.START_OBJECT)) {
-                    delayedException = new IOException("Malformed response for "
+                    delayedException = new ApiException(500, "Malformed response for "
                             + request.featureName() + ", using control values.");
                     request.setError(delayedException);
                     logger.warn(request.getError().getMessage());;
@@ -220,8 +214,9 @@ public class CausalClient {
                 try {
                     request.deserializeResponse(parser);
                 } catch (ApiException e) {
-                    delayedException = new IOException("Error parsing response from server for "
-                            + request.featureName() + ", reverting to control.", e);
+                    delayedException =
+                            new ApiException(500, "Error parsing response from server for "
+                                    + request.featureName() + ", reverting to control.", e);
                     request.setError(delayedException);
                     logger.warn(request.getError().getMessage());;
                 }
@@ -230,8 +225,8 @@ public class CausalClient {
                 if (parser.currentName().equals("errors")) {
                     // handle any errors from the request
                     if (!JsonToken.START_ARRAY.equals(parser.nextToken())) {
-                        IOException exception = new IOException(
-                                "Malformed response, expecting array, using control.");
+                        ApiException exception = new ApiException(500,
+                                "Malformed response, expecting array. May be unreported errors.");
                         errorOutRequests(exception, requests);
                         throw exception;
                     }
@@ -240,7 +235,8 @@ public class CausalClient {
                         if (parser.currentToken() == JsonToken.VALUE_NULL)
                             index++;
                         else {
-                            requests[index++].setError(new ApiException(parser.getText()));
+                            delayedException = new ApiException(500, parser.getText());
+                            requests[index++].setError(delayedException);
                         }
                     }
                 }
@@ -248,23 +244,24 @@ public class CausalClient {
             if (delayedException != null)
                 throw delayedException;
         } catch (JsonParseException e1) {
-            IOException exception = new IOException("Malformed response, using control.", e1);
+            ApiException exception =
+                    new ApiException(500, "Malformed response, using control.", e1);
             errorOutRequests(exception, requests);
             throw exception;
         } catch (IOException e1) {
             // may happen if we lose connection mid string
             errorOutRequests(e1, requests);
-            throw e1;
+            throw new ApiException(500, "Error reading from server", e1);
         }
     }
 
     protected void request(SessionRequestable session, JsonGenerator gen, Requestable... requests)
-            throws InterruptedException, IOException {
+            throws InterruptedException, ApiException {
         CompletableFuture<Void> result = requestAsync(session, gen, requests);
         try {
             result.get();
         } catch (ExecutionException e) {
-            throw (IOException) e.getCause();
+            throw (ApiException) e.getCause();
         }
     }
 
@@ -286,7 +283,7 @@ public class CausalClient {
                         try {
                             handleResponse(resp, session, gen, requests);
                             result.complete(null);
-                        } catch (IOException e2) {
+                        } catch (ApiException e2) {
                             result.completeExceptionally(e2);
                         }
                     }
@@ -309,7 +306,7 @@ public class CausalClient {
     }
 
     // mark the requests with the recoverable error and log it.
-    private void errorOutRequests(Throwable exception, Requestable[] requests) {
+    private void errorOutRequests(Exception exception, Requestable[] requests) {
         logger.warn(exception.getMessage());
         for (Requestable r : requests) {
             r.setError(exception);
