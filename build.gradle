@@ -15,9 +15,6 @@ dependencies {
     api 'org.slf4j:slf4j-api:1.7.30'
 }
 
-group = 'io.causallabs'
-version = System.env.MAVEN_VERSION
-
 compileJava {
     options.release = 8
 }
@@ -27,46 +24,19 @@ java {
     withSourcesJar()
 }
 
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+}
+
+
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            artifactId = 'runtime'
-            from components.java
-            versionMapping {
-                usage('java-api') {
-                    fromResolutionOf('runtimeClasspath')
-                }
-                usage('java-runtime') {
-                    fromResolutionResult()
-                }
-            }
-            pom {
-                name = 'Causal Runtime Library'
-                description = 'Runtime required to run Causal java components.'
-                url = 'http://www.causallabs.io'
-
-                licenses {
-                    license {
-                        name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'jpalmucci'
-                        name = 'Jeff Palmucci'
-                        email = 'support@causallabs.io'
-                    }
-                }
-                scm {
-                    connection = 'scm:git:git@github.com:CausalLabs/runtime.git'
-                    developerConnection = 'scm:git:git@github.com:CausalLabs/runtime.git'
-                    url = 'https://github.com/CausalLabs/runtime.git'
-                }
-            }
+        gpr(MavenPublication) {
+            from(components.java)
         }
     }
-
     repositories {
         maven {
             url = uri("s3://maven.causallabs.io/")
@@ -76,10 +46,3 @@ publishing {
         }
     }
 }
-
-javadoc {
-    if(JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
-    }
-}
-
