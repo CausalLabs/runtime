@@ -225,6 +225,7 @@ public class CausalClient {
                 }
                 try {
                     request.deserializeResponse(parser);
+                    request.setActive(true);
                 } catch (ApiException e) {
                     delayedException =
                             new ApiException(500, "Error parsing response from server for "
@@ -273,7 +274,12 @@ public class CausalClient {
         try {
             result.get();
         } catch (ExecutionException e) {
-            throw (ApiException) e.getCause();
+            if (e.getCause() instanceof ApiException)
+                throw (ApiException) e.getCause();
+            else if (e.getCause() instanceof InterruptedException)
+                throw (InterruptedException) e.getCause();
+            else
+                throw new RuntimeException("Unexpected exception type in request", e.getCause());
         }
     }
 
@@ -304,7 +310,8 @@ public class CausalClient {
                     public void failed(Exception exception) {
                         // Error while connecting to the server
                         errorOutRequests(exception, requests);
-                        result.completeExceptionally(exception);
+                        result.completeExceptionally(new ApiException(500,
+                                "Faled call to impression server", exception));
                     }
 
                     @Override

@@ -37,7 +37,7 @@ public abstract class Requestable {
     ////////////////////////////////////////////////////////////////////////////////
 
     void setActive(boolean x) {
-        _active = true;
+        _active = x;
     }
 
     private boolean _active = false;
