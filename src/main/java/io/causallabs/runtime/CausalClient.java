@@ -311,7 +311,7 @@ public class CausalClient {
                         // Error while connecting to the server
                         errorOutRequests(exception, requests);
                         result.completeExceptionally(new ApiException(500,
-                                "Faled call to impression server", exception));
+                                "Failed call to impression server", exception));
                     }
 
                     @Override
