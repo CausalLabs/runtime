@@ -33,10 +33,15 @@ import org.slf4j.LoggerFactory;
 public class CausalClient {
 
     public static synchronized CausalClient init(String impressionServerURL) {
+        return init(impressionServerURL, HttpAsyncClients.createDefault());
+    }
+
+    public static synchronized CausalClient init(String impressionServerURL,
+            CloseableHttpAsyncClient httpClient) {
         if (m_instance != null) {
             throw new IllegalStateException("Causal client was already initialized");
         }
-        m_instance = new CausalClient(impressionServerURL);
+        m_instance = new CausalClient(impressionServerURL, httpClient);
         return m_instance;
     }
 
@@ -52,14 +57,14 @@ public class CausalClient {
                 logger.warn("CAUSAL_ISERVER not set. Using http://localhost:3004/iserver");
                 url = "http://localhost:3004/iserver";
             }
-            m_instance = new CausalClient(url);
+            m_instance = new CausalClient(url, HttpAsyncClients.createDefault());
         }
         return m_instance;
     }
 
-    private CausalClient(String impressionServerURL) {
+    private CausalClient(String impressionServerURL, CloseableHttpAsyncClient client) {
         m_impressionServerUrl = impressionServerURL;
-        m_asyncClient = HttpAsyncClients.createDefault();
+        m_asyncClient = client;
         m_asyncClient.start();
     }
 
