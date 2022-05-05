@@ -293,11 +293,9 @@ public class CausalClient {
     // request.
     protected CompletableFuture<Void> requestAsync(SessionRequestable session, JsonGenerator gen,
             Requestable... requests) {
-
-
         setupRequest(session, gen, requests);
         CompletableFuture<Void> result = new CompletableFuture<>();
-        asyncSendJson(URI.create(m_impressionServerUrl + "/features"), getResult(gen),
+        asyncSendJson(session, URI.create(m_impressionServerUrl + "/features"), getResult(gen),
                 new FutureCallback<SimpleHttpResponse>() {
 
                     @Override
@@ -352,8 +350,8 @@ public class CausalClient {
     }
 
     // Send the Json payload to the signal handler (asynchronously)
-    public void signal(JsonGenerator gen) {
-        asyncSendJson("signalling event", URI.create(m_impressionServerUrl + "/signal"),
+    public void signal(SessionRequestable session, JsonGenerator gen) {
+        asyncSendJson("signalling event", session, URI.create(m_impressionServerUrl + "/signal"),
                 getResult(gen));
     }
 
@@ -392,19 +390,19 @@ public class CausalClient {
      * 
      * @param gen
      */
-    public void signalExternal(JsonGenerator gen) {
+    public void signalExternal(SessionRequestable session, JsonGenerator gen) {
         try {
             gen.writeEndObject();
         } catch (IOException e) {
             // should never happen
             logger.error("Error serializing to ram, dropping request", e);
         }
-        asyncSendJson("writing external", URI.create(m_impressionServerUrl + "/external"),
+        asyncSendJson("writing external", session, URI.create(m_impressionServerUrl + "/external"),
                 getResult(gen));
     }
 
-    private void asyncSendJson(String what, URI uri, String body) {
-        asyncSendJson(uri, body, new FutureCallback<SimpleHttpResponse>() {
+    private void asyncSendJson(String what, SessionRequestable session, URI uri, String body) {
+        asyncSendJson(session, uri, body, new FutureCallback<SimpleHttpResponse>() {
 
             @Override
             public void completed(SimpleHttpResponse result) {
@@ -426,14 +424,17 @@ public class CausalClient {
         });
     }
 
-    private void asyncSendJson(URI uri, String body, FutureCallback<SimpleHttpResponse> handler) {
-        SimpleHttpRequest reqest =
-                SimpleRequestBuilder.post(uri).setBody(body, ContentType.APPLICATION_JSON)
-                        .setHeader("user-agent", "Causal java client")
-                        .addHeader("Accept", "text/plain").build();
+    private void asyncSendJson(SessionRequestable session, URI uri, String body,
+            FutureCallback<SimpleHttpResponse> handler) {
+        SimpleRequestBuilder builder = SimpleRequestBuilder.post(uri)
+                .setBody(body, ContentType.APPLICATION_JSON)
+                .setHeader("user-agent", "Causal java client").addHeader("Accept", "text/plain");
+        session.addHeaders(builder);
+
+        SimpleHttpRequest request = builder.build();
 
         Future<SimpleHttpResponse> future = m_asyncClient.execute(
-                SimpleRequestProducer.create(reqest), SimpleResponseConsumer.create(), handler);
+                SimpleRequestProducer.create(request), SimpleResponseConsumer.create(), handler);
 
         m_threadPool.submit(() -> {
             try {
