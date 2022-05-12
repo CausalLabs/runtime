@@ -44,9 +44,23 @@ public abstract class Requestable {
 
     // recoverable error support
     public void setError(Exception t) {
+        _callComplete = true;
         throwable = t;
     };
 
+    public void setComplete() {
+        _callComplete = true;
+    }
+
+    public void checkComplete() {
+        if (!_callComplete)
+            throw new IllegalStateException(
+                    "Attempt to access a request before calling a CausalClient.request method.");
+        if (!_active)
+            throw new IllegalStateException("Attempt to access a request that is inactive.");
+    }
+
+    private boolean _callComplete = false;
     private Exception throwable = null;
 
     // serialize the arguments to be sent to the impression server. gen should
