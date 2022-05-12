@@ -24,4 +24,16 @@ public abstract class SessionRequestable {
     // Add appropriate headers to send a request to the impression server
     abstract public void addHeaders(SimpleRequestBuilder builder);
 
+    public void setComplete() {
+        _callComplete = true;
+    }
+
+    public void checkComplete() {
+        if (!_callComplete)
+            throw new IllegalStateException(
+                    "Attempt to access a request before calling a CausalClient.request method.");
+    }
+
+    private boolean _callComplete = false;
+
 }
