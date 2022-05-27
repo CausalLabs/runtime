@@ -17,12 +17,12 @@ public class ApiException extends Exception {
         this(400, message);
     }
 
-    public ApiException(int statusCode, String string, Exception e) {
+    public ApiException(int statusCode, String string, Throwable e) {
         super(string, e);
         m_statusCode = statusCode;
     }
 
-    public ApiException(String string, Exception e) {
+    public ApiException(String string, Throwable e) {
         this(400, string, e);
     }
 
