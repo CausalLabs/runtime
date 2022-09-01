@@ -36,7 +36,7 @@ public abstract class Requestable {
     // For use by causal runtime and impression server
     ////////////////////////////////////////////////////////////////////////////////
 
-    void setActive(boolean x) {
+    protected void setActive(boolean x) {
         _active = x;
     }
 
@@ -46,6 +46,11 @@ public abstract class Requestable {
     public void setError(Exception t) {
         _callComplete = true;
         throwable = t;
+    };
+
+    // used to set the defaults when the server doesn't know about the feature
+    public void setDefaults() {
+        _callComplete = true;
     };
 
     public void setComplete() {

@@ -212,11 +212,9 @@ public class CausalClient {
                         continue;
                     } else if (parser.getText().equals("UNKNOWN")) {
                         // server doesn't know about this feature yet, this
-                        // error is expected during schema migration, so
+                        // is expected during schema migration, so
                         // shouldn't throw an exception
-                        request.setError(new ApiException("Server doesn't know feature "
-                                + request.featureName() + ", using control."));
-                        logger.info(request.getError().getMessage());
+                        request.setDefaults();
                         parser.nextToken();
                         continue;
                     }
