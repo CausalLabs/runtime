@@ -404,7 +404,11 @@ public class CausalClient {
 
             @Override
             public void completed(SimpleHttpResponse result) {
-                if (result.getCode() != 200) {
+                if (result.getCode() == 404) {
+                    // couldn't find something. Probably due to schema migration
+                    logger.warn(
+                            result.getCode() + " " + what + ": " + result.getBodyText());
+                } else if (result.getCode() != 200) {
                     logger.error(
                             "Error " + result.getCode() + " " + what + ": " + result.getBodyText());
                 }
