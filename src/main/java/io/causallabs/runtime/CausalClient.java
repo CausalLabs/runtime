@@ -359,8 +359,9 @@ public class CausalClient {
      * place where you write the external value. caller should call this, write the value to the
      * generator, then call signalExternal
      * 
-     * @param deviceId
+     * @param session
      * @param impressionIds
+     * @param featureName
      * @param fieldName
      * @return
      */
