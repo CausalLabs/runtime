@@ -47,8 +47,13 @@ public class CausalClient {
 
     public static synchronized CausalClient getInstance() {
         if (m_instance == null) {
-            // this is for back compatibility
-            String url;
+            m_instance = new CausalClient(null, HttpAsyncClients.createDefault());
+        }
+        return m_instance;
+    }
+
+    private CausalClient(String url, CloseableHttpAsyncClient client) {
+        if (url == null) {
             if (System.getenv("CAUSAL_ISERVER") != null)
                 url = System.getenv("CAUSAL_ISERVER");
             else if (System.getProperty("io.causallabs.iserverUrl") != null) {
@@ -57,13 +62,8 @@ public class CausalClient {
                 logger.warn("CAUSAL_ISERVER not set. Using http://localhost:3004/iserver");
                 url = "http://localhost:3004/iserver";
             }
-            m_instance = new CausalClient(url, HttpAsyncClients.createDefault());
         }
-        return m_instance;
-    }
-
-    private CausalClient(String impressionServerURL, CloseableHttpAsyncClient client) {
-        m_impressionServerUrl = impressionServerURL;
+        m_impressionServerUrl = url;
         m_asyncClient = client;
         m_asyncClient.start();
     }
