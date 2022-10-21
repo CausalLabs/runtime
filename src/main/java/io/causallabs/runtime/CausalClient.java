@@ -24,6 +24,7 @@ import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
 import org.apache.hc.client5.http.async.methods.SimpleRequestProducer;
 import org.apache.hc.client5.http.async.methods.SimpleResponseConsumer;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
@@ -33,7 +34,8 @@ import org.slf4j.LoggerFactory;
 public class CausalClient {
 
     public static synchronized CausalClient init(String impressionServerURL) {
-        return init(impressionServerURL, HttpAsyncClients.createDefault());
+        return init(impressionServerURL,
+                HttpAsyncClientBuilder.create().disableAutomaticRetries().build());
     }
 
     public static synchronized CausalClient init(String impressionServerURL,
