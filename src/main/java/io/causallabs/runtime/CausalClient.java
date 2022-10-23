@@ -356,6 +356,23 @@ public class CausalClient {
     }
 
 
+    public void keepAlive(SessionRequestable session) {
+        StringWriter sw = new StringWriter();
+        JsonGenerator gen;
+        try {
+            gen = m_mapper.getFactory().createGenerator(sw);
+            gen.writeStartObject();
+            gen.writeFieldName("id");
+            session.serializeIds(gen);
+            gen.writeEndObject();
+            asyncSendJson("keepAlive", session, URI.create(m_impressionServerUrl + "/signal"),
+                    getResult(gen));
+        } catch (IOException e) {
+            // we are writing to a string, so this should never fail
+            throw new RuntimeException("Error creating in memory generator.", e);
+        }
+    }
+
     /**
      * Make a jackson generator to serialize an external callback. The generator is left at the
      * place where you write the external value. caller should call this, write the value to the
