@@ -3,6 +3,9 @@ package io.causallabs.mustache;
 /** Represents a field (argument, output, or event) of a feature's warehouse table */
 public interface WarehouseColumn {
 
+    /** Is this column defined in FDL, or is it implicitly defined by the system */
+    public boolean fromFDL();
+
     /** The name of the table this field is stored in */
     public String getTableName();
 
