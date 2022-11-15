@@ -21,7 +21,7 @@ public interface WarehouseColumn {
     /** Object that represents the comments and deprecation status of the field */
     public Description getDescription();
 
-    /** return true if this is a scalar value. False it is a list or a struct */
+    /** return true if this is a scalar value, false it is a list or a struct */
     public boolean isScalar();
 
 }
