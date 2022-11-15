@@ -17,6 +17,9 @@ public interface Event {
 
         public Description getDescription();
 
+        /** return true if this is a scalar value. False it is a list or a struct */
+        public boolean isScalar();
+
     }
 
     /**
