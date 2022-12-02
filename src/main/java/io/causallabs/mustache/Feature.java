@@ -24,4 +24,11 @@ public interface Feature {
      */
     public Collection<WarehouseColumn> getWarehouseColumns();
 
+    /**
+     * Return the events that are declared inside this feature
+     * 
+     * @return
+     */
+    public Collection<FeatureEvent> getFeatureEvents();
+
 }
