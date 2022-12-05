@@ -2,11 +2,7 @@ package io.causallabs.mustache;
 
 import java.util.List;
 
-/** Represents the definition of an abstract event, inherited by other events in the warehouse */
 public interface Event {
-
-    /** Return the name reserved for the event view in the data warehouse */
-    public String getEventViewName();
 
     public interface Column {
         public String getColumnName();
@@ -27,10 +23,5 @@ public interface Event {
      */
     public List<Column> getEventColumns();
 
-    /**
-     * Return all the places in the warehouse where events derived from this are stored.
-     * 
-     * @return
-     */
-    public List<WarehouseColumn> getDerivedColumns();
+
 }
