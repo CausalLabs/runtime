@@ -18,17 +18,35 @@ public interface Feature {
     public String getWarehouseTableName();
 
     /**
-     * return all the fields that are in the warehouse table for this feature
-     * 
-     * @return
+     * All the fields that are in the warehouse table for this feature
      */
     public Collection<WarehouseColumn> getWarehouseColumns();
 
     /**
-     * Return the events that are declared inside this feature
-     * 
-     * @return
+     * The events that are declared inside this feature
      */
     public Collection<FeatureEvent> getFeatureEvents();
+
+    /**
+     * The file location where this feature was defined
+     */
+    public FileLocation getFileLocation();
+
+    // /**
+    // * The attributes of this feature marked with @per (i.e. are available to use as a per in a
+    // * metric)
+    // */
+    // public Collection<WarehouseColumn> getPerColumns();
+
+    // interface ElapsedDirective {
+    // enum ElapsedType {
+    // SESSION_END
+    // };
+    // }
+
+    // /**
+    // * The attributes of this feature that are defined with @elapsed
+    // */
+    // public Collection<ElapsedDirective> getElapsedColumns();
 
 }

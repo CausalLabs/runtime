@@ -24,4 +24,12 @@ public interface WarehouseColumn {
     /** return true if this is a scalar value, false it is a list or a struct */
     public boolean isScalar();
 
+    /** returns true if it is a normal output, false if it is a plugin output or an argument */
+    public boolean isOutput();
+
+    /** returns the FDL filenam and line number where this entitity was defined */
+    public FileLocation getFileLocation();
+
+    /** returns the feature that this was defined on */
+    public String getFeatureName();
 }
