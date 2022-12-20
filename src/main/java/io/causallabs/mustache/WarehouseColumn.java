@@ -52,6 +52,6 @@ public interface WarehouseColumn {
         SESSION_END
     };
 
-    /** returns the elapsed type (@elapsed directive) */
+    /** returns the elapsed type (@elapsed directive). null if not an elapsed type */
     public ElapsedType getElapsedType();
 }
