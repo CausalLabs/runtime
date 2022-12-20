@@ -42,7 +42,6 @@ public interface WarehouseColumn {
     /* returns true if this field is the persistent key (only applicable to session fields) */
     public boolean isPersistentKey();
 
-
     /** returns the FDL filenam and line number where this entitity was defined */
     public FileLocation getFileLocation();
 
@@ -53,6 +52,6 @@ public interface WarehouseColumn {
         SESSION_END
     };
 
-    /** returns the elapsed type (@elapsed directive). Null if none */
+    /** returns the elapsed type (@elapsed directive) */
     public ElapsedType getElapsedType();
 }
