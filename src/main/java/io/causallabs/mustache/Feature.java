@@ -28,7 +28,7 @@ public interface Feature {
     public Collection<FeatureEvent> getFeatureEvents();
 
     /**
-     * The file location where this feature was defined
+     * The source code location where this feature was defined
      */
     public FileLocation getFileLocation();
 

@@ -42,7 +42,7 @@ public interface WarehouseColumn {
     /* returns true if this field is the persistent key (only applicable to session fields) */
     public boolean isPersistentKey();
 
-    /** returns the FDL filenam and line number where this entitity was defined */
+    /** returns the source code location where this entitity was defined */
     public FileLocation getFileLocation();
 
     /** returns the feature that this was defined on */
