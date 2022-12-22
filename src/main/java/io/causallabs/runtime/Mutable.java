@@ -16,9 +16,13 @@ public class Mutable<T> {
         setInitialValue(initialValue);
     }
 
+    public void reset() {
+        values.clear();
+    }
+
     public void setInitialValue(T x) {
         // we could make this a bunch more memory efficient if we need to - TODO
-        values.clear();
+        reset();
         values.add(new Record<T>(Mutable.getClock().millis(), x));
     }
 
@@ -28,6 +32,10 @@ public class Mutable<T> {
             values.get(values.size() - 1).endTime = now - 1;
         }
         values.add(new Record<T>(now, x));
+    }
+
+    public boolean isSet() {
+        return !values.isEmpty();
     }
 
     public T getValue() {

@@ -50,14 +50,6 @@ public interface Requested {
     // Return user visible representation of the field
     public Object get(int i);
 
-    // does not translate objects from their internal representation.
-    // used to log data to the avro file
-    // currently just returns a Mutable for mutable fields.
-    public Object getLog(int i);
-
-    // used to set a new value on a mutable field
-    public void putMutation(int i, Object o);
-
     // set the given output as an external value with the given name
     public void putExternal(int i, String name);
 
