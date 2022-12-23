@@ -6,41 +6,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Objects;
 
-public class Mutable<T> {
+/** Class that represents the changing value of a mutable over time. */
+public class MutableHistory<T> extends ArrayList<MutableHistory.Record<T>> {
 
-    public Mutable() {}
-
-    public Mutable(T initialValue) {
-        setValue(initialValue);
-    }
-
-    public void reset() {
-        values.clear();
-    }
+    public MutableHistory() {}
 
     public void setValue(T x) {
-        long now = Mutable.getClock().millis();
-        if (!values.isEmpty()) {
-            values.get(values.size() - 1).endTime = now - 1;
+        long now = MutableHistory.getClock().millis();
+        if (!isEmpty()) {
+            Record<T> last = get(size() - 1);
+            if (Objects.equals(last.value, x))
+                return;
+            last.endTime = now;
         }
-        values.add(new Record<T>(now, x));
+        add(new Record<T>(now, x));
     }
 
     public boolean isSet() {
-        return !values.isEmpty();
+        return !isEmpty();
     }
 
     public T getValue() {
-        return values.get(values.size() - 1).value;
-    }
-
-    public List<Record<T>> getHistory() {
-        if (!values.isEmpty()) {
-            values.get(values.size() - 1).endTime = Mutable.getClock().millis() - 1;
-        }
-        return values;
+        return get(size() - 1).value;
     }
 
     public static class Record<T> implements IndexedRecord {
@@ -77,8 +66,6 @@ public class Mutable<T> {
         }
     }
 
-    ArrayList<Record<T>> values = new ArrayList<>();
-
     public static Clock getClock() {
         return m_clock;
     }
@@ -92,6 +79,6 @@ public class Mutable<T> {
 
     // here so it can be manipulated for integration tests.
     private static Clock m_clock = Clock.systemUTC();
-    private static Logger logger = LoggerFactory.getLogger(Mutable.class);
+    private static Logger logger = LoggerFactory.getLogger(MutableHistory.class);
 
 }
