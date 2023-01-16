@@ -18,6 +18,12 @@ public interface WarehouseColumn {
     /** The Redshift data type when this field is exposed as a Redshift column */
     public String getRedshiftType();
 
+    /** The Redshift Spectrum data type when this field is exposed as a Redshift column */
+    public String getSpectrumType();
+
+    /** The Snowflake data type. */
+    public String getSnowflakeType();
+
     /** Object that represents the comments and deprecation status of the field */
     public Description getDescription();
 
