@@ -1,5 +1,7 @@
 package io.causallabs.mustache;
 
+import java.util.List;
+
 public interface Description {
 
     /** Return the FDL comment */
@@ -7,7 +9,7 @@ public interface Description {
 
     public String getFullDescription();
 
-    public String[] getDescriptionLines();
+    public List<String> getDescriptionLines();
 
     public boolean isDeprecated();
 
