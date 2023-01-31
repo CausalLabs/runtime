@@ -1,6 +1,5 @@
 package io.causallabs.runtime;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +8,7 @@ import org.slf4j.LoggerFactory;
  * Interface that must be supported for java classes that represent a feature inside the impression
  * server
  */
-public interface Requested {
+public interface Requested extends Impression {
 
     /** reset everything to default values */
     public void reset();
@@ -26,18 +25,12 @@ public interface Requested {
 
     public long count();
 
-    public String featureName();
-
     //////////////////////////////////////////////////////////////////////////////////
     // Serialization Support
     //////////////////////////////////////////////////////////////////////////////////
 
     // Deserialize the arguments from a client into this object
     public void deserializeArgs(JsonParser next) throws ApiException;
-
-    // Serialize the result to be sent to the client. Just writes the fields. You must be in an
-    // object context
-    public void serializeResponse(JsonGenerator gen);
 
     //////////////////////////////////////////////////////////////////////////////////
     // avro style access to fields
