@@ -6,7 +6,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 // Plugin visible methods on all impressions
 public interface Impression {
 
-    public String featureName();
+    public String getFeatureName();
 
     // Serialize the result to be sent to the client. Just writes the fields. You must be in an
     // object context
