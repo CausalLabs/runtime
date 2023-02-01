@@ -15,6 +15,9 @@ public interface Context {
     /** All the abstract event definitions */
     public Collection<AbstractEvent> getEvents();
 
+    /** All the metric tables. */
+    public Collection<MetricTable> getMetrics();
+
     /**
      * the set of parameters provided to the compiler using the --template-params command line
      * option

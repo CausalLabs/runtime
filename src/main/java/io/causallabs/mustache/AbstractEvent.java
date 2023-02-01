@@ -13,5 +13,5 @@ public interface AbstractEvent extends Event {
      * 
      * @return
      */
-    public List<WarehouseColumn> getDerivedColumns();
+    public List<FeatureColumn> getDerivedColumns();
 }
