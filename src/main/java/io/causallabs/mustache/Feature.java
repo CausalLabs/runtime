@@ -20,7 +20,7 @@ public interface Feature {
     /**
      * All the fields that are in the warehouse table for this feature
      */
-    public Collection<WarehouseColumn> getWarehouseColumns();
+    public Collection<FeatureColumn> getWarehouseColumns();
 
     /**
      * The events that are declared inside this feature
@@ -36,27 +36,27 @@ public interface Feature {
      * The attributes of this feature marked with @per (i.e. are available to use as a per in a
      * metric)
      */
-    public Collection<WarehouseColumn> getPerColumns();
+    public Collection<FeatureColumn> getPerColumns();
 
     /**
      * The attributes of this feature that are marked @session_key. Only applicable to sessions
      */
-    public Collection<WarehouseColumn> getSessionKeys();
+    public Collection<FeatureColumn> getSessionKeys();
 
     /**
      * The attributes of this feature that are marked @split_key. Only applicable to sessions.
      * Currently limited to one key
      */
-    public Collection<WarehouseColumn> getSplitKeys();
+    public Collection<FeatureColumn> getSplitKeys();
 
     /**
      * The attribute of this feature that is used as the persistent key. Only applicable to sessions
      */
-    public WarehouseColumn getPersistentKey();
+    public FeatureColumn getPersistentKey();
 
     /**
      * The attributes of this feature that are defined with @elapsed
      */
-    public Collection<WarehouseColumn> getElapsedColumns();
+    public Collection<FeatureColumn> getElapsedColumns();
 
 }
