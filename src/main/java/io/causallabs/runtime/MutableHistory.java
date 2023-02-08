@@ -36,6 +36,7 @@ public class MutableHistory<T> extends ArrayList<MutableHistory.Record<T>> {
         public Record(long now, T x) {
             startTime = now;
             value = x;
+            endTime = Long.MAX_VALUE;
         }
 
         long startTime, endTime;
