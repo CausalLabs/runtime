@@ -15,6 +15,9 @@ public interface Event {
 
         /** return true if this is a scalar value. False if it is a list or a struct */
         public boolean isScalar();
+
+        /** Is this column defined in FDL, or is it implicitly defined by the system */
+        public boolean fromFDL();
     }
 
     /**
