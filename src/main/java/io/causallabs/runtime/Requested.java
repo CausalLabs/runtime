@@ -44,7 +44,12 @@ public interface Requested extends Impression {
     public Object get(int i);
 
     // set the given output as an external value with the given name
+    // also marks the field as unset
     public void putExternal(int i, String name);
+
+    // if the output is set externally, the name of the external value type
+    // null otherwise
+    public String getExternal(int i);
 
     ////////////////////////////////////////////////////////////////////////////////
     // Support for feature gating
