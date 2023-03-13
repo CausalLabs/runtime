@@ -32,6 +32,14 @@ public class MutableHistory<T> extends ArrayList<MutableHistory.Record<T>> {
         return get(size() - 1).value;
     }
 
+    public void setEndTime(long endTime) {
+        // sets the end time of the last record. Used when the session closes
+        if (!isEmpty()) {
+            Record<T> last = get(size() - 1);
+            last.endTime = endTime;
+        }
+    }
+
     public static class Record<T> implements IndexedRecord {
         public Record(long now, T x) {
             startTime = now;
