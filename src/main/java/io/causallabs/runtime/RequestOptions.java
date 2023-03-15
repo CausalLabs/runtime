@@ -1,8 +1,8 @@
 package io.causallabs.runtime;
 
-import java.io.IOException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.IOException;
 
 /** Options that change the behavior of requests to an impression server. */
 public class RequestOptions {

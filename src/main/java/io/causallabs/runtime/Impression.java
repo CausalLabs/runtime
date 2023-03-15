@@ -1,7 +1,7 @@
 package io.causallabs.runtime;
 
-import java.io.IOException;
 import com.fasterxml.jackson.core.JsonGenerator;
+import java.io.IOException;
 
 // Plugin visible methods on all impressions
 public interface Impression {

@@ -1,8 +1,8 @@
 package io.causallabs.runtime;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.IOException;
 import java.io.StringWriter;
-import com.fasterxml.jackson.core.JsonGenerator;
 
 /** Plugin visible methods for all events */
 public interface ImpressionEvent {

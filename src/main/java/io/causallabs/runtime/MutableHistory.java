@@ -1,12 +1,12 @@
 package io.causallabs.runtime;
 
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Objects;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.IndexedRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Objects;
 
 /** Class that represents the changing value of a mutable over time. */
 public class MutableHistory<T> extends ArrayList<MutableHistory.Record<T>> {
