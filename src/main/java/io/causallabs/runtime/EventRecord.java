@@ -8,8 +8,7 @@ import org.apache.avro.generic.IndexedRecord;
  */
 public interface EventRecord extends IndexedRecord, ImpressionEvent {
 
-    public int getIndex();
+  public int getIndex();
 
-    public int getGlobalIndex();
-
+  public int getGlobalIndex();
 }

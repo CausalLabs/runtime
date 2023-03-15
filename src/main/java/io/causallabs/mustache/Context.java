@@ -6,21 +6,20 @@ import java.util.Map;
 /** This is the top level context provided to the template by the compiler */
 public interface Context {
 
-    /** The session definition */
-    public Feature getSession();
+  /** The session definition */
+  public Feature getSession();
 
-    /** All the non-abstract feature definitions */
-    public Collection<Feature> getFeatures();
+  /** All the non-abstract feature definitions */
+  public Collection<Feature> getFeatures();
 
-    /** All the abstract event definitions */
-    public Collection<AbstractEvent> getEvents();
+  /** All the abstract event definitions */
+  public Collection<AbstractEvent> getEvents();
 
-    /** All the metric tables. */
-    public Collection<MetricTable> getMetrics();
+  /** All the metric tables. */
+  public Collection<MetricTable> getMetrics();
 
-    /**
-     * the set of parameters provided to the compiler using the --template-params command line
-     * option
-     */
-    public Map<String, Object> getParams();
+  /**
+   * the set of parameters provided to the compiler using the --template-params command line option
+   */
+  public Map<String, Object> getParams();
 }
