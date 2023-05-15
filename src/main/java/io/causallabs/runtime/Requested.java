@@ -25,6 +25,10 @@ public interface Requested extends Impression {
   public void incCount(String impressionId);
 
   public void addImpression(String impressionId, long timestamp);
+  // return true if the memoized request contains the given impression id
+  public boolean hasImpression(String impressionId);
+  // return the last (and current) impression ID for this impression
+  public String lastImpressionId();
 
   public long count();
 
