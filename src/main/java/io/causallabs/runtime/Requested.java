@@ -21,7 +21,10 @@ public interface Requested extends Impression {
 
   // Increment the count if another request was just memoized with this one.
   // optionally pass a new impressionId to keep track of
+  @Deprecated
   public void incCount(String impressionId);
+
+  public void addImpression(String impressionId, long timestamp);
 
   public long count();
 
