@@ -28,6 +28,8 @@ public class MutableHistory<T> extends ArrayList<MutableHistory.Record<T>> {
   }
 
   public T getValue() {
+    if (size() == 0)
+      throw new IllegalStateException("Attempt to retrieve a value that was not set");
     return get(size() - 1).value;
   }
 
