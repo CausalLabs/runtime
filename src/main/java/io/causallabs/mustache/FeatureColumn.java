@@ -4,9 +4,6 @@ public interface FeatureColumn extends WarehouseColumn {
   /** Is this column defined in FDL, or is it implicitly defined by the system */
   public boolean fromFDL();
 
-  /** Object that represents the comments and deprecation status of the field */
-  public Description getDescription();
-
   /** return true if this is a scalar value, false it is a list or a struct */
   public boolean isScalar();
 

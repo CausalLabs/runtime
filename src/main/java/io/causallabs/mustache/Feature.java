@@ -7,6 +7,8 @@ public interface Feature {
   /** the name of the feature. "session" if this is the session context */
   public String getName();
 
+  public Description getDescription();
+
   /**
    * The name of the feature's table in the warehouse. Basically the name, but in snake case to
    * support SQLs case insensitivity.
