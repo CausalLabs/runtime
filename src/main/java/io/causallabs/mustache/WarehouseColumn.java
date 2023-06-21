@@ -6,6 +6,9 @@ public interface WarehouseColumn {
   /** The name of the table this field is stored in */
   public String getTableName();
 
+  /** Object that represents the comments and deprecation status of the field */
+  public Description getDescription();
+
   /** The name of the column this field is stored in. The FDL field name, but in snake_case. */
   public String getColumnName();
 
