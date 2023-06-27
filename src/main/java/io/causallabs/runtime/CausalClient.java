@@ -357,9 +357,14 @@ public class CausalClient {
   }
 
   // Send the Json payload to the signal handler (asynchronously)
-  public void signal(SessionRequestable session, JsonGenerator gen) {
-    asyncSendJson(
-        "signalling event", session, URI.create(m_impressionServerUrl + "/signal"), getResult(gen));
+  public Future<Void> signal(
+      SessionRequestable session, JsonGenerator gen, RequestOptions options) {
+    return asyncSendJson(
+        "signalling event",
+        session,
+        URI.create(m_impressionServerUrl + "/signal"),
+        getResult(gen),
+        options);
   }
 
   public void keepAlive(SessionRequestable session) {
@@ -372,7 +377,11 @@ public class CausalClient {
       session.serializeIds(gen);
       gen.writeEndObject();
       asyncSendJson(
-          "keepAlive", session, URI.create(m_impressionServerUrl + "/signal"), getResult(gen));
+          "keepAlive",
+          session,
+          URI.create(m_impressionServerUrl + "/signal"),
+          getResult(gen),
+          null);
     } catch (IOException e) {
       // we are writing to a string, so this should never fail
       throw new RuntimeException("Error creating in memory generator.", e);
@@ -427,10 +436,13 @@ public class CausalClient {
         "writing external",
         session,
         URI.create(m_impressionServerUrl + "/external"),
-        getResult(gen));
+        getResult(gen),
+        null);
   }
 
-  private void asyncSendJson(String what, SessionRequestable session, URI uri, String body) {
+  private Future<Void> asyncSendJson(
+      String what, SessionRequestable session, URI uri, String body, RequestOptions options) {
+    final CompletableFuture<Void> ret = new CompletableFuture<>();
     asyncSendJson(
         session,
         uri,
@@ -439,24 +451,35 @@ public class CausalClient {
 
           @Override
           public void completed(SimpleHttpResponse result) {
-            if (result.getCode() == 404) {
-              // couldn't find something. Probably due to schema migration
-              logger.warn(result.getCode() + " " + what + ": " + result.getBodyText());
-            } else if (result.getCode() != 200) {
-              logger.error("Error " + result.getCode() + " " + what + ": " + result.getBodyText());
+            int code = result.getCode();
+            if (code == 200) ret.complete(null);
+            else {
+              String errorMsg = result.getCode() + " " + what + ": " + result.getBodyText();
+              if (code == 404 || code == 410) {
+                // couldn't find something. Probably due to schema migration
+                if (options == null || !options.m_ignoreMissingImp)
+                  // only warn if the the options allow
+                  logger.warn(errorMsg);
+              } else {
+                logger.error(errorMsg);
+              }
+              ret.completeExceptionally(new ApiException(code, errorMsg));
             }
           }
 
           @Override
           public void failed(Exception ex) {
             logger.error("Error " + what + ": " + ex.getMessage(), ex);
+            ret.completeExceptionally(ex);
           }
 
           @Override
           public void cancelled() {
             logger.error("Request cancelled " + what);
+            ret.completeExceptionally(new InterruptedException("Request cancelled"));
           }
         });
+    return ret;
   }
 
   private void asyncSendJson(
