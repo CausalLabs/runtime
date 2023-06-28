@@ -457,13 +457,17 @@ public class CausalClient {
               String errorMsg = result.getCode() + " " + what + ": " + result.getBodyText();
               if (code == 404 || code == 410) {
                 // couldn't find something. Probably due to schema migration
-                if (options == null || !options.m_ignoreMissingImp)
+                if (options == null || !options.m_ignoreMissingImp) {
                   // only warn if the the options allow
                   logger.warn(errorMsg);
+                  ret.completeExceptionally(new ApiException(code, errorMsg));
+                } else {
+                  ret.complete(null);
+                }
               } else {
                 logger.error(errorMsg);
+                ret.completeExceptionally(new ApiException(code, errorMsg));
               }
-              ret.completeExceptionally(new ApiException(code, errorMsg));
             }
           }
 
