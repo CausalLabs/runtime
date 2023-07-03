@@ -31,7 +31,7 @@ public interface Feature {
   public Collection<FeatureColumn> getPerColumns();
 
   /** The attributes of this feature that are marked @session_key. Only applicable to sessions */
-  public Collection<FeatureColumn> getSessionKeys();
+  public Collection<? extends FeatureColumn> getSessionKeys();
 
   /**
    * The attributes of this feature that are marked @split_key. Only applicable to sessions.
