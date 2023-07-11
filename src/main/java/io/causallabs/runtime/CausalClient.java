@@ -496,7 +496,7 @@ public class CausalClient {
             .setBody(body, ContentType.APPLICATION_JSON)
             .setHeader("user-agent", "Causal java client")
             .addHeader("Accept", "text/plain");
-    session.addHeaders(builder);
+    if (session != null) session.addHeaders(builder);
 
     SimpleHttpRequest request = builder.build();
 

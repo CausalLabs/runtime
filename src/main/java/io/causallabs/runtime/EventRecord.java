@@ -8,7 +8,12 @@ import org.apache.avro.generic.IndexedRecord;
  */
 public interface EventRecord extends IndexedRecord, ImpressionEvent {
 
+  /** Index of the event inside a context, or -1 if offline */
   public int getIndex();
 
+  /**
+   * A unique index for this event type for all events that can occur within a session. Used to
+   * quickly calculate audience membership
+   */
   public int getGlobalIndex();
 }
