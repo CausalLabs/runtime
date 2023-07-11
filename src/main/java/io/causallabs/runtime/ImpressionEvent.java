@@ -11,7 +11,11 @@ public interface ImpressionEvent {
 
   public long getEventTime();
 
+  /** Returns null for non impression based events */
   public String getImpressionId();
+
+  /** returns null if not an offline event */
+  public String getSplitKey();
 
   // Serialize the result to be sent to the client. Just writes the fields. You must be in an
   // object context
