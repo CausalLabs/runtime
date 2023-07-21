@@ -4,15 +4,7 @@ import java.util.List;
 
 public interface Event {
 
-  public interface Column {
-    public String getColumnName();
-
-    public String getOrcType();
-
-    public String getRedshiftType();
-
-    public Description getDescription();
-
+  public interface Column extends Field {
     /** return true if this is a scalar value. False if it is a list or a struct */
     public boolean isScalar();
 
