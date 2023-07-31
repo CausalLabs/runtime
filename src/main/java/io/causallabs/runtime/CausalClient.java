@@ -425,14 +425,14 @@ public class CausalClient {
    *
    * @param gen
    */
-  public void signalExternal(SessionRequestable session, JsonGenerator gen) {
+  public Future<Void> signalExternal(SessionRequestable session, JsonGenerator gen) {
     try {
       gen.writeEndObject();
     } catch (IOException e) {
       // should never happen
       logger.error("Error serializing to ram, dropping request", e);
     }
-    asyncSendJson(
+    return asyncSendJson(
         "writing external",
         session,
         URI.create(m_impressionServerUrl + "/external"),
