@@ -32,8 +32,9 @@ public interface FeatureColumn extends WarehouseColumn {
   public String getFeatureName();
 
   public enum ElapsedType {
-    SESSION_END
-  };
+    SESSION_END,
+    UNTIL,
+  }
 
   /** returns the elapsed type (@elapsed directive). null if not an elapsed type */
   public ElapsedType getElapsedType();
