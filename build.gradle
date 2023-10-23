@@ -19,9 +19,13 @@ dependencies {
     api 'org.slf4j:slf4j-api:1.7.30'
 }
 
+compileJava {
+    options.release = 8
+}
+
 java {
    toolchain {
-    languageVersion.set(JavaLanguageVersion.of(8))
+    languageVersion.set(JavaLanguageVersion.of(11))
    }
     withJavadocJar()
     withSourcesJar()
