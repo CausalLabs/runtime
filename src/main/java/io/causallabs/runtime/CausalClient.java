@@ -322,7 +322,8 @@ public class CausalClient {
             // Error while connecting to the server
             errorOutRequests(exception, requests);
             result.completeExceptionally(
-                new ApiException(500, "Failed call to impression server", exception));
+                new ApiException(
+                    500, "Failed call to impression server:" + exception.getMessage(), exception));
           }
 
           @Override
@@ -425,7 +426,8 @@ public class CausalClient {
    *
    * @param gen
    */
-  public Future<Void> signalExternal(SessionRequestable session, JsonGenerator gen) {
+  public Future<Void> signalExternal(
+      SessionRequestable session, JsonGenerator gen, String externalName) {
     try {
       gen.writeEndObject();
     } catch (IOException e) {
@@ -433,7 +435,7 @@ public class CausalClient {
       logger.error("Error serializing to ram, dropping request", e);
     }
     return asyncSendJson(
-        "writing external",
+        "writing external " + externalName,
         session,
         URI.create(m_impressionServerUrl + "/external"),
         getResult(gen),
@@ -454,7 +456,16 @@ public class CausalClient {
             int code = result.getCode();
             if (code == 200) ret.complete(null);
             else {
-              String errorMsg = result.getCode() + " " + what + ": " + result.getBodyText();
+              JsonGenerator gen = createGenerator();
+              session.serializeIds(gen);
+              String errorMsg =
+                  getResult(gen)
+                      + " "
+                      + result.getCode()
+                      + " "
+                      + what
+                      + ": "
+                      + result.getBodyText();
               if (code == 404 || code == 410) {
                 // couldn't find something. Probably due to schema migration
                 if (options == null || !options.m_ignoreMissingImp) {
@@ -473,7 +484,9 @@ public class CausalClient {
 
           @Override
           public void failed(Exception ex) {
-            logger.error("Error " + what + ": " + ex.getMessage(), ex);
+            JsonGenerator gen = createGenerator();
+            session.serializeIds(gen);
+            logger.error(getResult(gen) + " Error " + what + ": " + ex.getMessage(), ex);
             ret.completeExceptionally(ex);
           }
 
