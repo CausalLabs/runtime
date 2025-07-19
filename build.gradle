@@ -21,12 +21,12 @@ dependencies {
 }
 
 compileJava {
-    options.release = 8
+    options.release = 17
 }
 
 java {
    toolchain {
-    languageVersion.set(JavaLanguageVersion.of(11))
+    languageVersion.set(JavaLanguageVersion.of(17))
    }
     withJavadocJar()
     withSourcesJar()
