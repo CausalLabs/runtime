@@ -19,15 +19,18 @@ dependencies {
     }
     api 'org.slf4j:slf4j-api:2.0.17'
 
-    // Security vulnerability fixes.
-    // NOTE: this module is published to s3://maven.causallabs.io/, so anything that
-    // resolves here is inherited by external consumers. Keep it patched.
-    constraints {
-        api('org.apache.commons:commons-lang3:3.20.0') {
-            because 'CVE fix: Uncontrolled Recursion (SNYK-JAVA-ORGAPACHECOMMONS-10734078). ' +
-                    'avro:1.12.0 -> commons-compress:1.26.2 otherwise pulls 3.14.0.'
-        }
-    }
+    // Security vulnerability fix: uncontrolled recursion, SNYK-JAVA-ORGAPACHECOMMONS-10734078.
+    // avro:1.12.0 -> commons-compress:1.26.2 otherwise drags in 3.14.0, below the 3.18.0 fix.
+    //
+    // This is a DIRECT api dependency rather than a `constraints` block on purpose. This module
+    // publishes to s3://maven.causallabs.io/, and a constraint reaches external consumers only
+    // as a POM <dependencyManagement> entry -- which Maven does NOT inherit from a dependency's
+    // POM. A Gradle consumer would be protected by the .module metadata; a Maven consumer would
+    // silently resolve 3.14.0 again. Declaring it directly puts it in <dependencies>, where
+    // Maven's nearest-wins and Gradle's highest-wins both land on 3.20.0.
+    //
+    // Guarded by :runtime:verifyPublishedPom.
+    api 'org.apache.commons:commons-lang3:3.20.0'
 }
 
 compileJava {
