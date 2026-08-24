@@ -10,7 +10,13 @@ repositories {
 
 dependencies {
     api 'org.apache.httpcomponents.client5:httpclient5:5.6.1'
-    api 'com.fasterxml.jackson.core:jackson-databind:2.21.4'
+    // httpclient5 5.6.1 brings httpcore5 5.4, which carries CVE-2026-54399 and CVE-2026-54428
+    // (both resource exhaustion). Fixed in 5.4.3. Direct api deps for the same reason as
+    // commons-lang3 below -- this module is published, so it has to land in POM <dependencies>.
+    api 'org.apache.httpcomponents.core5:httpcore5:5.4.3'
+    api 'org.apache.httpcomponents.core5:httpcore5-h2:5.4.3'
+    // CVE-2026-59889: @JsonView bypassed for @JsonUnwrapped container properties.
+    api 'com.fasterxml.jackson.core:jackson-databind:2.21.6'
     // don't use the $avroversion variable here, it breaks the build
     api ("org.apache.avro:avro:1.12.0") {
         exclude group: 'com.fasterxml.jackson.core'
